@@ -1,0 +1,58 @@
+services:
+
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  atoolo_genai.indexer.document_factory:
+    class: Atoolo\GenAi\Service\Indexer\GenAiDocumentFactory
+
+  atoolo_genai.indexer.index_service:
+    class: Atoolo\GenAi\Service\Indexer\HttpIndexService
+    arguments:
+      - '@atoolo_genai.client'
+      - '@atoolo_resource.resource_channel'
+      - '@atoolo_genai.indexer.document_factory'
+
+  Atoolo\GenAi\Service\Indexer\SiteKit\DefaultGenAiDocumentEnricher:
+    arguments:
+      - '@atoolo_resource.navigation_hierarchy_loader'
+      - '@atoolo_index.indexer.content_collector.sitekit'
+      - 'genai'
+    tags:
+      - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }
+
+  atoolo_genai.indexer.progress_state:
+    class: Atoolo\Index\Service\Indexer\IndexerProgressState
+    arguments:
+      - '@atoolo_index.index_name'
+      - '@atoolo_index.indexer.status_store'
+      - 'genai'
+
+  atoolo_genai.indexer.internal_resource_indexer:
+    class: Atoolo\Index\Service\Indexer\InternalResourceIndexer
+    arguments:
+      - !tagged_iterator atoolo_genai.indexer.document_enricher
+      - '@atoolo_index.indexer.resource_filter'
+      - '@atoolo_genai.indexer.progress_state'
+      - '@atoolo_index.indexer.location_finder'
+      - '@atoolo_resource.resource_loader'
+      - '@atoolo_genai.indexer.index_service'
+      - '@atoolo_index.indexer.aborter'
+      - '@atoolo_index.indexer.configuration_loader'
+      - 'genai'
+      - '@atoolo_index.index_name'
+      - '@atoolo_index.indexer.php_limit_increaser'
+      - '@logger'
+    tags:
+      - { name: 'atoolo_index.indexer', priority: 10 }
+
+  atoolo_genai.indexer.index_document_dumper:
+    class: Atoolo\Index\Service\Indexer\IndexDocumentDumper
+    arguments:
+      - '@atoolo_resource.resource_loader'
+      - !tagged_iterator { tag: 'atoolo_genai.indexer.document_enricher' }
+      - '@atoolo_genai.indexer.document_factory'
+      - 'genai'
+    tags:
+      - { name: 'atoolo_index.indexer.document_dumper' }

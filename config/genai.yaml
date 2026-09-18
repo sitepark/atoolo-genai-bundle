@@ -1,0 +1,35 @@
+parameters:
+  atoolo_genai.connection.url.default: 'http://localhost:8080'
+  atoolo_genai.connection.api_key.default: ''
+  atoolo_genai.connection.timeout.default: 30
+  atoolo_genai.connection.url: '%env(default:atoolo_genai.connection.url.default:GENAI_URL)%'
+  atoolo_genai.connection.api_key: '%env(default:atoolo_genai.connection.api_key.default:GENAI_API_KEY)%'
+  atoolo_genai.connection.timeout: '%env(default:atoolo_genai.connection.timeout.default:GENAI_TIMEOUT)%'
+
+services:
+
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  atoolo_genai.http_client:
+    class: Symfony\Contracts\HttpClient\HttpClientInterface
+    factory: ['Symfony\Component\HttpClient\HttpClient', 'create']
+    arguments:
+      - { timeout: '%atoolo_genai.connection.timeout%' }
+
+  atoolo_genai.client:
+    class: Atoolo\GenAi\Service\GenAiHttpClient
+    arguments:
+      - '@atoolo_genai.http_client'
+      - '%atoolo_genai.connection.url%'
+      - '%atoolo_genai.connection.api_key%'
+
+  atoolo_genai.assistant:
+    class: Atoolo\GenAi\Service\Assistant\HttpAssistant
+    arguments:
+      - '@atoolo_genai.client'
+      - '@atoolo_resource.resource_channel'
+
+  Atoolo\GenAi\Assistant:
+    alias: atoolo_genai.assistant

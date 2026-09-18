@@ -1,0 +1,13 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+    _instanceof:
+        Symfony\Component\Console\Command\Command:
+            tags: ['command']
+
+    Atoolo\GenAi\Console\Command\Ask:
+      arguments:
+        - '@atoolo_resource.resource_channel'
+        - '@atoolo_genai.assistant'
+      tags: ['command']
