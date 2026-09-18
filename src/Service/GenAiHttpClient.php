@@ -58,12 +58,7 @@ class GenAiHttpClient
                 return [];
             }
             /** @var array<string,mixed> $data */
-            $data = json_decode(
-                $content,
-                true,
-                512,
-                JSON_THROW_ON_ERROR,
-            );
+            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR | JSON_THROW_ON_ERROR);
             return $data;
         } catch (GenAiRequestException $e) {
             throw $e;
