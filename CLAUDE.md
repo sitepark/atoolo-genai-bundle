@@ -40,6 +40,11 @@ assistant.
   dates as `DATE_ATOM`, sends `meta` only when filled, and adds a
   `content_hash` (`sha256:<hash of title, description and content>`) so the
   GenAI application can skip documents whose indexed content did not change.
+  The port of the index-bundle only asks for `jsonSerialize()`; that this
+  target answers with a flat map of fields is its own decision, and
+  `getFields()` stays the bundle's API for `HttpIndexUpdater`. Should the
+  GenAI side ever want a different shape — chunks, a nested structure — only
+  this class changes.
 - `GenAiDocumentFactory` — feeds both the `HttpIndexUpdater` and the document
   dumper, so a dump and an index run always produce the same document.
 - `HttpIndexService` / `HttpIndexUpdater` — the `IndexService` and

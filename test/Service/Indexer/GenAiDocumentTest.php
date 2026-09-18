@@ -111,6 +111,22 @@ class GenAiDocumentTest extends TestCase
         );
     }
 
+    public function testJsonSerializeIsThePortContract(): void
+    {
+        $doc = $this->createFilledDocument();
+
+        $this->assertEquals(
+            $doc->getFields(),
+            $doc->jsonSerialize(),
+            'the port representation should be the document itself',
+        );
+        $this->assertJsonStringEqualsJsonString(
+            (string) json_encode($doc->getFields()),
+            (string) json_encode($doc),
+            'the document should be encodable directly',
+        );
+    }
+
     private function createFilledDocument(): GenAiDocument
     {
         $doc = new GenAiDocument();

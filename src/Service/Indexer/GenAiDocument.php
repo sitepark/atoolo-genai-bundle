@@ -13,6 +13,11 @@ use DateTimeInterface;
  * The property names are the JSON keys of the remote API, so the mapping
  * lives in the property names and nowhere else. Fields that are not set are
  * left out of the payload.
+ *
+ * The port of the index-bundle only asks a document to represent itself as
+ * data, which {@see jsonSerialize()} does. That this representation happens
+ * to be a flat map of fields is this target's decision; {@see getFields()} is
+ * the bundle's own API, used by {@see HttpIndexUpdater} to build a bulk.
  */
 class GenAiDocument implements IndexDocument
 {
@@ -108,6 +113,14 @@ class GenAiDocument implements IndexDocument
             . ($this->description ?? '') . "\n"
             . ($this->content ?? ''),
         );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->getFields();
     }
 
     /**

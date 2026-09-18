@@ -34,7 +34,8 @@ class GenAiDumpTest extends TestCase
         $dump = $dumper->dump(['/a/b.php']);
 
         $this->assertCount(1, $dump, 'one document expected');
-        $fields = $dump[0];
+        // the dumper hands back the document; the command json_encodes it
+        $fields = $dump[0]->jsonSerialize();
 
         $this->assertEquals('123', $fields['id'], 'unexpected id');
         $this->assertEquals('genai', $fields['source'], 'unexpected source');
