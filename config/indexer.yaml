@@ -42,6 +42,8 @@ services:
       - '@atoolo_index.indexer.configuration_loader'
       - 'genai'
       - '@atoolo_index.index_name'
+      # only offered once the CMS provides configs/indexer/genai.php
+      - false
       - '@atoolo_index.indexer.php_limit_increaser'
       - '@logger'
     tags:
