@@ -55,4 +55,55 @@ class HttpIndexUpdaterTest extends TestCase
             'the error message should name the document',
         );
     }
+
+    public function testClearDocumentsDropsTheBuffer(): void
+    {
+        $requests = 0;
+        $updater = $this->createUpdater('{"accepted":1}', $requests);
+        $updater->addDocument($updater->createDocument());
+        $updater->clearDocuments();
+
+        $result = $updater->update();
+
+        $this->assertTrue($result->isSuccess(), 'unexpected result');
+        $this->assertEquals(0, $requests, 'cleared documents must not be sent');
+    }
+
+    public function testEmptyBulkSendsNothing(): void
+    {
+        $requests = 0;
+        $updater = $this->createUpdater('{}', $requests);
+
+        $result = $updater->update();
+
+        $this->assertTrue($result->isSuccess(), 'unexpected result');
+        $this->assertEquals(0, $requests, 'an empty bulk must not be sent');
+    }
+
+    public function testResponseWithoutCountsIsASuccess(): void
+    {
+        $requests = 0;
+        $updater = $this->createUpdater('{}', $requests);
+        $updater->addDocument($updater->createDocument());
+
+        $result = $updater->update();
+
+        $this->assertTrue($result->isSuccess(), 'no rejected, no errors');
+        $this->assertEquals(1, $requests, 'the bulk should be sent once');
+    }
+
+    private function createUpdater(string $body, int &$requests): HttpIndexUpdater
+    {
+        $client = new MockHttpClient(
+            static function () use ($body, &$requests): MockResponse {
+                $requests++;
+                return new MockResponse($body);
+            },
+        );
+        return new HttpIndexUpdater(
+            new GenAiHttpClient($client, 'https://genai.example.com'),
+            new GenAiDocumentFactory(),
+            'www',
+        );
+    }
 }

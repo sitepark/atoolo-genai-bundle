@@ -199,4 +199,16 @@ class GenAiHttpClientTest extends TestCase
             $apiKey,
         );
     }
+
+    public function testRequestWithEmptyBodyAndStatusOk(): void
+    {
+        $requests = [];
+        $client = $this->createClient(new MockResponse(''), $requests);
+
+        $this->assertEquals(
+            [],
+            $client->request('POST', 'indices/www/commit', []),
+            'an empty 200 body should produce an empty array',
+        );
+    }
 }

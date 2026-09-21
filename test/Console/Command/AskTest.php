@@ -108,4 +108,21 @@ class AskTest extends TestCase
             (new Application([$command]))->find('genai:ask'),
         );
     }
+
+    public function testExecuteWithSourceWithoutScore(): void
+    {
+        $tester = $this->createTester(new Answer(
+            '42',
+            [new AnswerSource('123', '/a.php', 'A')],
+        ));
+
+        $tester->execute(['question' => 'why?']);
+        $tester->assertCommandIsSuccessful();
+
+        $this->assertStringContainsString(
+            '/a.php',
+            $tester->getDisplay(),
+            'a source without a score should still be listed',
+        );
+    }
 }

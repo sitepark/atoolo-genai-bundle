@@ -135,4 +135,16 @@ class GenAiDocumentTest extends TestCase
         $doc->content = 'content';
         return $doc;
     }
+
+    public function testGetMeta(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->setMeta('department', 'culture');
+
+        $this->assertEquals(
+            ['department' => 'culture'],
+            $doc->getMeta(),
+            'unexpected meta',
+        );
+    }
 }

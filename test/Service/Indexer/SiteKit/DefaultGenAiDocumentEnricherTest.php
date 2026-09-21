@@ -933,4 +933,34 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
             new DataBag($data),
         );
     }
+
+    public function testEnrichValidUntilFromSchedulingEnd(): void
+    {
+        $from = new DateTime();
+        $from->setTime(12, 0, 0, 0);
+        $from->add(new \DateInterval('P1D'));
+
+        $to = new DateTime();
+        $to->setTime(12, 0, 0, 0);
+        $to->add(new \DateInterval('P5D'));
+
+        $doc = $this->enrichWithData([
+            'metadata' => [
+                'scheduling' => [
+                    [
+                        'from' => $from->getTimestamp(),
+                        'to' => $to->getTimestamp(),
+                        'contentType' => 'event',
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertEquals($from, $doc->valid_from, 'unexpected valid_from');
+        $this->assertEquals(
+            $to,
+            $doc->valid_until,
+            'valid_until should come from the scheduling end',
+        );
+    }
 }

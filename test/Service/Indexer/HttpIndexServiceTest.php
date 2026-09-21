@@ -250,4 +250,15 @@ class HttpIndexServiceTest extends TestCase
             $this->createMock(ResourceTenant::class),
         );
     }
+
+    public function testGetManagedIndicesWithoutIndicesKey(): void
+    {
+        $service = $this->createService('{}');
+
+        $this->assertEquals(
+            [],
+            $service->getManagedIndices(),
+            'a response without indices should yield none',
+        );
+    }
 }
