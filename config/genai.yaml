@@ -1,8 +1,15 @@
 parameters:
-  atoolo_genai.connection.url.default: 'http://localhost:8080'
+  atoolo_genai.connection.scheme.default: 'http'
+  atoolo_genai.connection.host.default: 'localhost'
+  atoolo_genai.connection.port.default: '8080'
+  atoolo_genai.connection.path.default: ''
   atoolo_genai.connection.api_key.default: ''
   atoolo_genai.connection.timeout.default: 30
-  atoolo_genai.connection.url: '%env(default:atoolo_genai.connection.url.default:GENAI_URL)%'
+  atoolo_genai.connection.scheme: '%env(default:atoolo_genai.connection.scheme.default:GENAI_SCHEME)%'
+  atoolo_genai.connection.host: '%env(default:atoolo_genai.connection.host.default:GENAI_HOST)%'
+  atoolo_genai.connection.port: '%env(default:atoolo_genai.connection.port.default:GENAI_PORT)%'
+  atoolo_genai.connection.path: '%env(default:atoolo_genai.connection.path.default:GENAI_PATH)%'
+  atoolo_genai.connection.url: '%atoolo_genai.connection.scheme%://%atoolo_genai.connection.host%:%atoolo_genai.connection.port%%atoolo_genai.connection.path%'
   atoolo_genai.connection.api_key: '%env(default:atoolo_genai.connection.api_key.default:GENAI_API_KEY)%'
   atoolo_genai.connection.timeout: '%env(default:atoolo_genai.connection.timeout.default:GENAI_TIMEOUT)%'
 
@@ -11,6 +18,10 @@ services:
   _defaults:
     autowire: true
     autoconfigure: true
+
+  Atoolo\GenAi\Service\EnvVarLoader:
+    tags:
+      - { name: 'container.env_var_loader' }
 
   atoolo_genai.http_client:
     class: Symfony\Contracts\HttpClient\HttpClientInterface

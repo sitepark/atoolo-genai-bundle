@@ -87,7 +87,25 @@ from the console via `genai:ask <question> [--lang]`.
 
 ## Configuration
 
-Environment variables: `GENAI_URL`, `GENAI_API_KEY`, `GENAI_TIMEOUT`.
+The connection is held as its parts, the way the search-bundle holds the Solr
+connection, so that each one can be set on its own:
+
+| Variable | Default |
+|---|---|
+| `GENAI_SCHEME` | `http` |
+| `GENAI_HOST` | `localhost` |
+| `GENAI_PORT` | `8080` |
+| `GENAI_PATH` | *(empty)* |
+| `GENAI_API_KEY` | *(empty, no key is sent)* |
+| `GENAI_TIMEOUT` | `30` |
+
+Without any of them the bundle talks to `http://localhost:8080`.
+`Service\EnvVarLoader` takes a `GENAI_URL` apart into scheme, host, port and
+path, so an environment that knows the application as one address can set
+that instead - the same way `SOLR_URL` works in the search-bundle.
+`atoolo_genai.connection.url` is assembled from the parts and is what
+`GenAiHttpClient` is built with.
+
 Scheduling through the index-bundle:
 `atoolo_index.indexer.schedules: { genai: '0 3 * * *' }`.
 

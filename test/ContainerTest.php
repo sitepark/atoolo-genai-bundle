@@ -70,6 +70,7 @@ class ContainerTest extends TestCase
                             'atoolo_index.indexer.document_dumper',
                             'atoolo_genai.indexer.document_enricher',
                             'command',
+                            'container.env_var_loader',
                         ] as $tag
                     ) {
                         $this->tagged[$tag] = array_keys(
@@ -118,6 +119,127 @@ class ContainerTest extends TestCase
             $this->tagged['command'],
             'genai:ask should be available',
         );
+    }
+
+    public function testEnvVarLoaderIsRegistered(): void
+    {
+        $this->assertContains(
+            'Atoolo\GenAi\Service\EnvVarLoader',
+            $this->tagged['container.env_var_loader'],
+            'GENAI_URL should be taken apart into the connection parts',
+        );
+    }
+
+    public function testConnectionUrlFallsBackToLocalhost(): void
+    {
+        $this->assertEquals(
+            'http://localhost:8080',
+            $this->resolveConnectionUrl([]),
+            'without any environment the local application should be used',
+        );
+    }
+
+    public function testConnectionUrlFromHostAndPort(): void
+    {
+        $this->assertEquals(
+            'https://genai.example.com:9090/genai',
+            $this->resolveConnectionUrl([
+                'GENAI_SCHEME' => 'https',
+                'GENAI_HOST' => 'genai.example.com',
+                'GENAI_PORT' => '9090',
+                'GENAI_PATH' => '/genai',
+            ]),
+            'every part should be configurable on its own',
+        );
+    }
+
+    public function testConnectionUrlWithHostOnly(): void
+    {
+        $this->assertEquals(
+            'http://genai.example.com:8080',
+            $this->resolveConnectionUrl(['GENAI_HOST' => 'genai.example.com']),
+            'a part that is not set should keep its default',
+        );
+    }
+
+    public function testApiKeyFromTheEnvironment(): void
+    {
+        $this->assertEquals(
+            'secret',
+            $this->resolveParameter(
+                ['GENAI_API_KEY' => 'secret'],
+                'atoolo_genai.connection.api_key',
+            ),
+            'the api key should be configurable through the environment',
+        );
+    }
+
+    public function testWithoutAnApiKeyNoneIsConfigured(): void
+    {
+        $this->assertEquals(
+            '',
+            $this->resolveParameter([], 'atoolo_genai.connection.api_key'),
+            'without a key none is sent, which disables the remote api',
+        );
+    }
+
+    public function testTimeoutFromTheEnvironment(): void
+    {
+        $this->assertEquals(
+            '60',
+            $this->resolveParameter(
+                ['GENAI_TIMEOUT' => '60'],
+                'atoolo_genai.connection.timeout',
+            ),
+            'the timeout should be configurable through the environment',
+        );
+    }
+
+    private function resolveConnectionUrl(array $env): string
+    {
+        return $this->resolveParameter($env, 'atoolo_genai.connection.url');
+    }
+
+    /**
+     * Compiles the bundle configuration with the given environment and
+     * resolves one of its parameters, so that what reaches the http client
+     * is checked the way the application builds it.
+     *
+     * @param array<string,string> $env
+     */
+    private function resolveParameter(array $env, string $name): string
+    {
+        $server = $_SERVER;
+        foreach (
+            [
+                'GENAI_SCHEME',
+                'GENAI_HOST',
+                'GENAI_PORT',
+                'GENAI_PATH',
+                'GENAI_API_KEY',
+                'GENAI_TIMEOUT',
+            ] as $variable
+        ) {
+            unset($_SERVER[$variable]);
+        }
+        foreach ($env as $variable => $value) {
+            $_SERVER[$variable] = $value;
+        }
+
+        try {
+            $container = new ContainerBuilder();
+            $container->setParameter('kernel.cache_dir', sys_get_temp_dir());
+            $container->setDefinition(
+                'atoolo_resource.resource_channel',
+                (new Definition(\stdClass::class))->setSynthetic(true),
+            );
+            $this->load($container, __DIR__ . '/../config', 'genai.yaml');
+            $container->compile(true);
+
+            return (string) $container->getParameter($name);
+        } finally {
+            $_SERVER = $server;
+        }
     }
 
     private function load(
