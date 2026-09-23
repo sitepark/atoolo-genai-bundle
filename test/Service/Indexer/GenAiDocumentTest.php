@@ -43,6 +43,18 @@ class GenAiDocumentTest extends TestCase
         $this->assertEquals('123', $data['id'], 'unexpected id');
     }
 
+    public function testChannelIsSent(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->channel = 'www';
+
+        $this->assertEquals(
+            'www',
+            $doc->jsonSerialize()['channel'],
+            'unexpected channel',
+        );
+    }
+
     public function testDateIsFormattedAsAtom(): void
     {
         $doc = new GenAiDocument();

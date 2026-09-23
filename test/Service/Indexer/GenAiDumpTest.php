@@ -28,7 +28,7 @@ class GenAiDumpTest extends TestCase
         $dumper = new IndexDocumentDumper(
             $this->createResourceLoader(),
             [$this->createEnricher()],
-            new GenAiDocumentFactory(),
+            new GenAiDocumentFactory($this->createResourceChannel()),
             'genai',
         );
 
@@ -40,6 +40,7 @@ class GenAiDumpTest extends TestCase
 
         $this->assertEquals('article', $data['type'], 'unexpected type');
         $this->assertEquals('123', $data['id'], 'unexpected id');
+        $this->assertEquals('www', $data['channel'], 'unexpected channel');
         $this->assertEquals('genai', $data['source'], 'unexpected source');
         $this->assertEquals('A title', $data['title'], 'unexpected title');
         $this->assertEquals(
@@ -67,7 +68,7 @@ class GenAiDumpTest extends TestCase
         $dumper = new IndexDocumentDumper(
             $this->createResourceLoader(),
             [],
-            new GenAiDocumentFactory(),
+            new GenAiDocumentFactory($this->createResourceChannel()),
             'genai',
         );
 

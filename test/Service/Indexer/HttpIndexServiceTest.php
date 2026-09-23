@@ -75,9 +75,9 @@ class HttpIndexServiceTest extends TestCase
             'unexpected url',
         );
         $this->assertStringContainsString(
-            '"id":"123"',
+            '"id":"123","channel":"www"',
             $this->requests[0]['body'],
-            'the document should be part of the bulk',
+            'the document should be part of the bulk, in the channel',
         );
     }
 
@@ -123,7 +123,7 @@ class HttpIndexServiceTest extends TestCase
             'unexpected url',
         );
         $this->assertEquals(
-            '{"source":"genai","ids":["123"]}',
+            '{"channel":"www","source":"genai","ids":["123"]}',
             $this->requests[0]['body'],
             'unexpected body',
         );
@@ -158,7 +158,7 @@ class HttpIndexServiceTest extends TestCase
             'unexpected url',
         );
         $this->assertEquals(
-            '{"source":"genai","keepProcessId":"p-1"}',
+            '{"channel":"www","source":"genai","keepProcessId":"p-1"}',
             $this->requests[0]['body'],
             'unexpected body',
         );
@@ -233,7 +233,7 @@ class HttpIndexServiceTest extends TestCase
         return new HttpIndexService(
             new GenAiHttpClient($httpClient, 'https://genai.example.com'),
             $this->createResourceChannel(),
-            new GenAiDocumentFactory(),
+            new GenAiDocumentFactory($this->createResourceChannel()),
         );
     }
 

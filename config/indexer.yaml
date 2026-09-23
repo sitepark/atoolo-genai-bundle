@@ -6,6 +6,8 @@ services:
 
   atoolo_genai.indexer.document_factory:
     class: Atoolo\GenAi\Service\Indexer\GenAiDocumentFactory
+    arguments:
+      - '@atoolo_resource.resource_channel'
 
   atoolo_genai.indexer.index_service:
     class: Atoolo\GenAi\Service\Indexer\HttpIndexService

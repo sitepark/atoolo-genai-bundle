@@ -8,6 +8,9 @@ use Atoolo\GenAi\Service\GenAiHttpClient;
 use Atoolo\GenAi\Service\Indexer\GenAiDocumentFactory;
 use Atoolo\GenAi\Service\Indexer\HttpIndexUpdater;
 use Atoolo\Index\Service\Indexer\IndexDocument;
+use Atoolo\Resource\DataBag;
+use Atoolo\Resource\ResourceChannel;
+use Atoolo\Resource\ResourceTenant;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -24,7 +27,7 @@ class HttpIndexUpdaterTest extends TestCase
                 new MockHttpClient(new MockResponse('{}')),
                 'https://genai.example.com',
             ),
-            new GenAiDocumentFactory(),
+            new GenAiDocumentFactory($this->createResourceChannel()),
         );
 
         $this->expectException(InvalidArgumentException::class);
@@ -50,7 +53,7 @@ class HttpIndexUpdaterTest extends TestCase
         );
         $updater = new HttpIndexUpdater(
             new GenAiHttpClient($client, 'https://genai.example.com'),
-            new GenAiDocumentFactory(),
+            new GenAiDocumentFactory($this->createResourceChannel()),
         );
 
         $doc = $updater->createDocument();
@@ -65,7 +68,7 @@ class HttpIndexUpdaterTest extends TestCase
             'unexpected url',
         );
         $this->assertEquals(
-            '[{"type":"article","id":"7"}]',
+            '[{"type":"article","id":"7","channel":"www"}]',
             $requests[0]['body'],
             'the documents should be sent as a bare list',
         );
@@ -154,7 +157,27 @@ class HttpIndexUpdaterTest extends TestCase
         );
         return new HttpIndexUpdater(
             new GenAiHttpClient($client, 'https://genai.example.com'),
-            new GenAiDocumentFactory(),
+            new GenAiDocumentFactory($this->createResourceChannel()),
+        );
+    }
+
+    private function createResourceChannel(): ResourceChannel
+    {
+        return new ResourceChannel(
+            '',
+            'WWW',
+            '',
+            '',
+            false,
+            '',
+            '',
+            '',
+            '',
+            '',
+            'www',
+            [],
+            new DataBag([]),
+            $this->createStub(ResourceTenant::class),
         );
     }
 }

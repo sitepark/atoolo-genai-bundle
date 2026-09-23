@@ -13,11 +13,10 @@ use Atoolo\Resource\ResourceLanguage;
 /**
  * The GenAI application as an index target.
  *
- * The application knows no indices. It separates the content of the CMS
- * instances by the `source` every document carries, and the indexer already
- * passes that source to each of the calls below. The index name of the
- * channel therefore never reaches the application; it only remains the name
- * the indexer reports its progress under.
+ * The application separates its indices by the `channel`, the way Solr does
+ * by its cores, so the index name of the resource channel is the channel
+ * every document, delete and purge is sent with. Within a channel the
+ * content is told apart by the `source` the indexer passes to each call.
  */
 class HttpIndexService implements IndexService
 {
@@ -37,9 +36,10 @@ class HttpIndexService implements IndexService
     }
 
     /**
-     * The application holds no index the indexer could be asked about, so
-     * the index of this channel is the one and only it manages. Answering
-     * with anything else would make the indexer skip every resource.
+     * The application has no endpoint that lists its channels to an
+     * indexer, so the index of this channel is the one and only it manages.
+     * Answering with anything else would make the indexer skip every
+     * resource.
      *
      * @return string[]
      */
@@ -79,7 +79,11 @@ class HttpIndexService implements IndexService
         $this->client->request(
             'POST',
             'api/index/purge',
-            ['source' => $source, 'keepProcessId' => $processId],
+            [
+                'channel' => $this->getIndex($lang),
+                'source' => $source,
+                'keepProcessId' => $processId,
+            ],
         );
     }
 
@@ -96,7 +100,11 @@ class HttpIndexService implements IndexService
         $this->client->request(
             'POST',
             'api/index/documents/delete',
-            ['source' => $source, 'ids' => array_values($idList)],
+            [
+                'channel' => $this->getIndex(ResourceLanguage::default()),
+                'source' => $source,
+                'ids' => array_values($idList),
+            ],
         );
     }
 

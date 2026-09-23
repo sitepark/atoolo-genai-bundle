@@ -30,6 +30,11 @@ class GenAiDocument implements IndexDocument
 
     public string $type = self::TYPE_ARTICLE;
     public ?string $id = null;
+    /**
+     * The index of the GenAI application the document belongs to. Required
+     * by the application; set by the {@see GenAiDocumentFactory}.
+     */
+    public ?string $channel = null;
     public ?string $source = null;
     public ?string $processId = null;
     public ?string $objectType = null;
@@ -80,6 +85,7 @@ class GenAiDocument implements IndexDocument
         foreach (
             [
                 'id' => $this->id,
+                'channel' => $this->channel,
                 'source' => $this->source,
                 'processId' => $this->processId,
                 'objectType' => $this->objectType,

@@ -48,7 +48,8 @@ assistant.
   `parent`), `TextSection` (`headline` + `html`), `LinkSection`
   (`headline` + `Link[]`).
 - `GenAiDocumentFactory` — feeds both the `HttpIndexUpdater` and the document
-  dumper, so a dump and an index run always produce the same document.
+  dumper, so a dump and an index run always produce the same document. It
+  sets the `channel`, which is no property of the resource.
 - `HttpIndexService` / `HttpIndexUpdater` — the `IndexService` and
   `IndexUpdater` ports of the index-bundle. The updater buffers a chunk and
   sends one bulk request; an empty bulk sends nothing. The application
@@ -71,11 +72,12 @@ assistant.
   `ResourceChannel`, because the application links the sources of an answer; a
   url that already names a host is kept.
 
-**No indices, one source.** The application separates the content of the CMS
-instances by the `source` every document carries; it knows no indices.
-`getIndex()` therefore never reaches the application, it only names what the
-indexer reports its progress under, and `getManagedIndices()` answers with
-that one name.
+**The index is the channel.** The application separates its indices by the
+`channel`, the way Solr does by its cores. Every document, delete and purge
+carries it, and it is the index name: `getIndex()`, the `searchIndex` of the
+`ResourceChannel`, the same for every language. Within a channel the content
+is told apart by the `source`. The application lists no channels to an
+indexer, so `getManagedIndices()` answers with that one name.
 
 **Known gaps of the remote API.** The document has no place for the access
 groups of a resource, so the GenAI index knows no access rights - an answer
@@ -104,12 +106,13 @@ transport detail leaks upwards.
 |---|---|
 | health | `GET /actuator/health` (`{"status":"UP"}`) |
 | bulk update | `POST /api/index/documents`, body is a bare list of documents, answers `{documents, chunks}` |
-| delete by id | `POST /api/index/documents/delete` `{source, ids}` |
-| purge by process id | `POST /api/index/purge` `{source, keepProcessId}` |
+| delete by id | `POST /api/index/documents/delete` `{channel, source, ids}` |
+| purge by process id | `POST /api/index/purge` `{channel, source, keepProcessId}` |
 | ask | GraphQL `POST /graphql`, query `question(systemPrompt!, userPrompt!, query!, language!, categoryIds)` |
 
 There is no commit; documents are searchable as soon as the bulk request
-returns. There is no endpoint that lists indices either.
+returns. A document requires its `channel` - at most 64 letters, digits,
+`.`, `_` or `-`.
 
 The contract is the one the application actually serves; `/v3/api-docs` of a
 running instance is its OpenAPI description, `/graphql` answers an
