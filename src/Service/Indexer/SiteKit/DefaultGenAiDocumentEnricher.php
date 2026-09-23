@@ -208,6 +208,11 @@ class DefaultGenAiDocumentEnricher implements
         $document->headline = $base->getString('teaser.headline')
             ?: $metadata->getString('headline')
             ?: $base->getString('title');
+        $document->kicker = $this->kicker($resource);
+        $document->intro = $this->nonEmpty(
+            $metadata->getString('intro')
+            ?: $metadata->getString('description'),
+        );
 
         $sections = [];
 
@@ -229,6 +234,57 @@ class DefaultGenAiDocumentEnricher implements
         }
 
         $document->content = $sections;
+    }
+
+    /**
+     * The kicker of a resource is the one of its teaser or its own. Without
+     * either, it is inherited from the nearest ancestor in the navigation
+     * that has one, as the teasers of the website show it.
+     */
+    private function kicker(Resource $resource): ?string
+    {
+        $kicker = $this->nonEmpty(
+            $resource->data->getString('base.teaser.kicker')
+            ?: $resource->data->getString('base.kicker'),
+        );
+        if ($kicker !== null) {
+            return $kicker;
+        }
+
+        try {
+            $location = $resource->toLocation();
+            while (
+                ($parent = $this->navigationLoader->loadPrimaryParent($location))
+                !== null
+            ) {
+                $kicker = $this->nonEmpty(
+                    $parent->data->getString('base.kicker'),
+                );
+                if ($kicker !== null) {
+                    return $kicker;
+                }
+                $location = $parent->toLocation();
+            }
+        } catch (\Throwable $th) {
+            $this->logger?->error(
+                sprintf(
+                    'unable to inherit the kicker of "%s"',
+                    $resource->location,
+                ),
+                [
+                    'error' => $th,
+                    'location' => $resource->location,
+                ],
+            );
+        }
+
+        return null;
+    }
+
+    private function nonEmpty(string $text): ?string
+    {
+        $text = trim($text);
+        return $text !== '' ? $text : null;
     }
 
     /**

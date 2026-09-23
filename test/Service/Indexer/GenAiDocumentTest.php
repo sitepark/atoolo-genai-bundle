@@ -95,12 +95,43 @@ class GenAiDocumentTest extends TestCase
         );
     }
 
+    public function testArticleSendsKickerAndIntro(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->kicker = 'Bürgerservice';
+        $doc->headline = 'Personalausweis';
+        $doc->intro = 'So beantragen Sie Ihren Ausweis.';
+
+        $data = $doc->jsonSerialize();
+
+        $this->assertEquals(
+            'Bürgerservice',
+            $data['kicker'],
+            'unexpected kicker',
+        );
+        $this->assertEquals(
+            'So beantragen Sie Ihren Ausweis.',
+            $data['intro'],
+            'unexpected intro',
+        );
+    }
+
+    public function testArticleWithoutKickerAndIntroSendsNone(): void
+    {
+        $data = (new GenAiDocument())->jsonSerialize();
+
+        $this->assertArrayNotHasKey('kicker', $data, 'unexpected kicker');
+        $this->assertArrayNotHasKey('intro', $data, 'unexpected intro');
+    }
+
     public function testMediaSendsRawTextOnly(): void
     {
         $doc = new GenAiDocument();
         $doc->type = GenAiDocument::TYPE_MEDIA;
         $doc->rawText = 'Der Text des PDF.';
+        $doc->kicker = 'should not be sent for a medium';
         $doc->headline = 'should not be sent for a medium';
+        $doc->intro = 'should not be sent for a medium';
         $doc->content = [new TextSection('', '<p>neither</p>')];
 
         $data = $doc->jsonSerialize();
@@ -116,6 +147,16 @@ class GenAiDocumentTest extends TestCase
             'headline',
             $data,
             'a medium has no headline',
+        );
+        $this->assertArrayNotHasKey(
+            'kicker',
+            $data,
+            'a medium has no kicker',
+        );
+        $this->assertArrayNotHasKey(
+            'intro',
+            $data,
+            'a medium has no intro',
         );
         $this->assertArrayNotHasKey(
             'content',

@@ -62,10 +62,14 @@ assistant.
   is not part of that tree but answers the questions people ask most, so it
   becomes a section of its own - its facts in one list, which the application
   treats as a single block and therefore never tears apart. Plain text of the
-  CMS is escaped on its way into the HTML. The url of the document is made
-  absolute with `https://` and the `serverName` of the `ResourceChannel`,
-  because the application links the sources of an answer; a url that already
-  names a host is kept.
+  CMS is escaped on its way into the HTML. An article carries `kicker` and
+  `intro` next to its `headline`: the kicker is the one of the teaser or the
+  resource, otherwise inherited from the nearest navigation ancestor that has
+  one, as the `ResourceKickerResolver` of the graphql-search-bundle does; the
+  intro is `metadata.intro`, falling back to `metadata.description`. The url
+  of the document is made absolute with `https://` and the `serverName` of the
+  `ResourceChannel`, because the application links the sources of an answer; a
+  url that already names a host is kept.
 
 **No indices, one source.** The application separates the content of the CMS
 instances by the `source` every document carries; it knows no indices.

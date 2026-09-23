@@ -251,6 +251,130 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testKickerFromTeaser(): void
+    {
+        $doc = $this->enrichWithData([
+            'base' => [
+                'kicker' => 'Own kicker',
+                'teaser' => ['kicker' => 'Teaser kicker'],
+            ],
+        ]);
+
+        $this->assertEquals(
+            'Teaser kicker',
+            $doc->kicker,
+            'the teaser kicker should win',
+        );
+    }
+
+    public function testKickerOfTheResource(): void
+    {
+        $this->navigationLoader
+            ->expects($this->never())
+            ->method('loadPrimaryParent');
+
+        $doc = $this->enrichWithData(['base' => ['kicker' => 'Own kicker']]);
+
+        $this->assertEquals('Own kicker', $doc->kicker, 'unexpected kicker');
+    }
+
+    public function testKickerIsInheritedFromTheNavigation(): void
+    {
+        $parent = $this->createResource(['url' => '/parent.php']);
+        $grandParent = $this->createResource([
+            'url' => '/grand-parent.php',
+            'base' => ['kicker' => 'Inherited kicker'],
+        ]);
+        $this->navigationLoader
+            ->expects($this->exactly(2))
+            ->method('loadPrimaryParent')
+            ->willReturnCallback(
+                static fn(ResourceLocation $location): ?Resource
+                    => match ($location->location) {
+                        '/page.php' => $parent,
+                        '/parent.php' => $grandParent,
+                        default => null,
+                    },
+            );
+
+        $doc = $this->enrichWithData(['url' => '/page.php']);
+
+        $this->assertEquals(
+            'Inherited kicker',
+            $doc->kicker,
+            'the kicker of the nearest ancestor should be used',
+        );
+    }
+
+    public function testWithoutAnyKickerThereIsNone(): void
+    {
+        $doc = $this->enrichWithData(['base' => ['kicker' => '  ']]);
+
+        $this->assertNull($doc->kicker, 'unexpected kicker');
+    }
+
+    public function testUnloadableParentLeavesNoKicker(): void
+    {
+        $this->navigationLoader
+            ->method('loadPrimaryParent')
+            ->willThrowException(
+                new ResourceNotFoundException(
+                    ResourceLocation::of('/parent.php'),
+                ),
+            );
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('error');
+        $this->enricher->setLogger($logger);
+
+        $doc = $this->enrichWithData(['url' => '/page.php']);
+
+        $this->assertNull($doc->kicker, 'unexpected kicker');
+    }
+
+    public function testIntroFromMetadata(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => [
+                'intro' => 'The intro',
+                'description' => 'The description',
+            ],
+        ]);
+
+        $this->assertEquals('The intro', $doc->intro, 'the intro should win');
+    }
+
+    public function testIntroFallsBackToTheDescription(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => ['description' => 'The description'],
+        ]);
+
+        $this->assertEquals(
+            'The description',
+            $doc->intro,
+            'the description should be the fallback',
+        );
+    }
+
+    public function testWithoutIntroThereIsNone(): void
+    {
+        $doc = $this->enrichWithData([]);
+
+        $this->assertNull($doc->intro, 'unexpected intro');
+    }
+
+    public function testAMediumHasNoKickerAndNoIntro(): void
+    {
+        $doc = $this->enrichWithData([
+            'media' => true,
+            'base' => ['kicker' => 'Kicker'],
+            'metadata' => ['intro' => 'Intro'],
+        ]);
+
+        $this->assertNull($doc->kicker, 'a medium has no kicker');
+        $this->assertNull($doc->intro, 'a medium has no intro');
+    }
+
     public function testTextSectionKeepsTheHtml(): void
     {
         $doc = $this->enrichWithData([

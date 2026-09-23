@@ -44,7 +44,15 @@ class GenAiDocument implements IndexDocument
     /**
      * Only sent for an article.
      */
+    public ?string $kicker = null;
+    /**
+     * Only sent for an article.
+     */
     public ?string $headline = null;
+    /**
+     * Only sent for an article.
+     */
+    public ?string $intro = null;
     /**
      * The sections of an article, in the order the editor arranged them.
      *
@@ -103,8 +111,16 @@ class GenAiDocument implements IndexDocument
             return $data;
         }
 
-        if ($this->headline !== null) {
-            $data['headline'] = $this->headline;
+        foreach (
+            [
+                'kicker' => $this->kicker,
+                'headline' => $this->headline,
+                'intro' => $this->intro,
+            ] as $name => $value
+        ) {
+            if ($value !== null) {
+                $data[$name] = $value;
+            }
         }
         if (!empty($this->content)) {
             $data['content'] = array_map(
