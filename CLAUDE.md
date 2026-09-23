@@ -79,6 +79,11 @@ may be built from protected content. It has no `language` either, although
 the question does. Both are left out rather than smuggled in; they belong in
 the API.
 
+**Only the channel language.** For now the translations are not indexed.
+`ChannelLanguageFilter` wraps the `ResourceFilter` of the index-bundle and
+rejects every resource whose language is not the `locale` of the
+`ResourceChannel`; the solr indexer keeps the unwrapped filter.
+
 The indexer runs under the source `genai` and is configured by its own
 `configs/indexer/genai.php`, so it can be enabled separately from the solr
 indexer (`internal.php`).

@@ -22,6 +22,12 @@ services:
     tags:
       - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }
 
+  atoolo_genai.indexer.resource_filter:
+    class: Atoolo\GenAi\Service\Indexer\ChannelLanguageFilter
+    arguments:
+      - '@atoolo_index.indexer.resource_filter'
+      - '@atoolo_resource.resource_channel'
+
   atoolo_genai.indexer.progress_state:
     class: Atoolo\Index\Service\Indexer\IndexerProgressState
     arguments:
@@ -33,7 +39,7 @@ services:
     class: Atoolo\Index\Service\Indexer\InternalResourceIndexer
     arguments:
       - !tagged_iterator atoolo_genai.indexer.document_enricher
-      - '@atoolo_index.indexer.resource_filter'
+      - '@atoolo_genai.indexer.resource_filter'
       - '@atoolo_genai.indexer.progress_state'
       - '@atoolo_index.indexer.location_finder'
       - '@atoolo_resource.resource_loader'
