@@ -17,7 +17,7 @@ services:
   Atoolo\GenAi\Service\Indexer\SiteKit\DefaultGenAiDocumentEnricher:
     arguments:
       - '@atoolo_resource.navigation_hierarchy_loader'
-      - '@atoolo_index.indexer.content_collector.sitekit'
+      - '@atoolo_resource.resource_channel'
       - 'genai'
     tags:
       - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }

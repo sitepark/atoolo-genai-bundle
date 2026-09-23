@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Test\Service\Indexer;
 
+use Atoolo\GenAi\Dto\Indexer\Category;
+use Atoolo\GenAi\Dto\Indexer\Link;
+use Atoolo\GenAi\Dto\Indexer\LinkSection;
+use Atoolo\GenAi\Dto\Indexer\TextSection;
 use Atoolo\GenAi\Service\Indexer\GenAiDocument;
 use DateTime;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -12,139 +16,139 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(GenAiDocument::class)]
 class GenAiDocumentTest extends TestCase
 {
+    public function testArticleIsTheDefaultType(): void
+    {
+        $doc = new GenAiDocument();
+
+        $this->assertEquals(
+            'article',
+            $doc->jsonSerialize()['type'],
+            'a document should be an article until it is set to a medium',
+        );
+        $this->assertFalse($doc->isMedia(), 'should not be a medium');
+    }
+
     public function testNullFieldsAreLeftOut(): void
     {
         $doc = new GenAiDocument();
         $doc->id = '123';
 
-        $fields = $doc->getFields();
+        $data = $doc->jsonSerialize();
 
         $this->assertArrayNotHasKey(
             'title',
-            $fields,
+            $data,
             'a field that was never set should not be sent',
         );
-        $this->assertEquals('123', $fields['id'], 'unexpected id');
+        $this->assertEquals('123', $data['id'], 'unexpected id');
     }
 
-    public function testDatesAreFormattedAsAtom(): void
+    public function testDateIsFormattedAsAtom(): void
     {
         $doc = new GenAiDocument();
-        $date = new DateTime('2024-01-31T11:15:10+00:00');
-        $doc->changed = $date;
-        $doc->date_list = [$date];
-
-        $fields = $doc->getFields();
+        $doc->date = new DateTime('2024-01-31T11:15:10+00:00');
 
         $this->assertEquals(
             '2024-01-31T11:15:10+00:00',
-            $fields['changed'],
+            $doc->jsonSerialize()['date'],
             'unexpected date format',
         );
+    }
+
+    public function testArticleSendsHeadlineAndContent(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->headline = 'Personalausweis';
+        $doc->content = [
+            new TextSection('Unterlagen', '<p>Ein Foto.</p>'),
+            new LinkSection('Service', [new Link('/form', 'Antrag')]),
+        ];
+        $doc->rawText = 'should not be sent for an article';
+
+        $data = $doc->jsonSerialize();
+
         $this->assertEquals(
-            ['2024-01-31T11:15:10+00:00'],
-            $fields['date_list'],
-            'dates inside a list should be formatted as well',
+            'Personalausweis',
+            $data['headline'],
+            'unexpected headline',
+        );
+        $this->assertEquals(
+            [
+                [
+                    'type' => 'text',
+                    'headline' => 'Unterlagen',
+                    'html' => '<p>Ein Foto.</p>',
+                ],
+                [
+                    'type' => 'links',
+                    'headline' => 'Service',
+                    'links' => [['url' => '/form', 'label' => 'Antrag']],
+                ],
+            ],
+            $data['content'],
+            'unexpected content sections',
+        );
+        $this->assertArrayNotHasKey(
+            'rawText',
+            $data,
+            'an article should not send the raw text of a medium',
         );
     }
 
-    public function testMetaIsOnlySentWhenFilled(): void
+    public function testMediaSendsRawTextOnly(): void
     {
         $doc = new GenAiDocument();
+        $doc->type = GenAiDocument::TYPE_MEDIA;
+        $doc->rawText = 'Der Text des PDF.';
+        $doc->headline = 'should not be sent for a medium';
+        $doc->content = [new TextSection('', '<p>neither</p>')];
+
+        $data = $doc->jsonSerialize();
+
+        $this->assertTrue($doc->isMedia(), 'should be a medium');
+        $this->assertEquals('media', $data['type'], 'unexpected type');
+        $this->assertEquals(
+            'Der Text des PDF.',
+            $data['rawText'],
+            'unexpected raw text',
+        );
+        $this->assertArrayNotHasKey(
+            'headline',
+            $data,
+            'a medium has no headline',
+        );
+        $this->assertArrayNotHasKey(
+            'content',
+            $data,
+            'a medium has no content sections',
+        );
+    }
+
+    public function testEmptyListsAreLeftOut(): void
+    {
+        $data = (new GenAiDocument())->jsonSerialize();
 
         $this->assertArrayNotHasKey(
-            'meta',
-            $doc->getFields(),
-            'an empty meta should not be sent',
+            'categories',
+            $data,
+            'empty categories should not be sent',
         );
-
-        $doc->setMeta('department', 'culture');
-
-        $this->assertEquals(
-            ['department' => 'culture'],
-            $doc->getFields()['meta'],
-            'unexpected meta',
+        $this->assertArrayNotHasKey(
+            'content',
+            $data,
+            'empty content should not be sent',
         );
     }
 
-    public function testContentHashIsStable(): void
-    {
-        $this->assertEquals(
-            $this->createFilledDocument()->getContentHash(),
-            $this->createFilledDocument()->getContentHash(),
-            'the same content should produce the same hash',
-        );
-    }
-
-    public function testContentHashChangesWithContent(): void
-    {
-        $other = $this->createFilledDocument();
-        $other->content = 'something else';
-
-        $this->assertNotEquals(
-            $this->createFilledDocument()->getContentHash(),
-            $other->getContentHash(),
-            'changed content should produce a different hash',
-        );
-    }
-
-    public function testContentHashIsNotOverwritten(): void
-    {
-        $doc = $this->createFilledDocument();
-        $doc->content_hash = 'sha256:given';
-
-        $this->assertEquals(
-            'sha256:given',
-            $doc->getFields()['content_hash'],
-            'a hash that was set explicitly should be kept',
-        );
-    }
-
-    public function testContentHashIsPartOfTheFields(): void
-    {
-        $fields = $this->createFilledDocument()->getFields();
-
-        $this->assertStringStartsWith(
-            'sha256:',
-            $fields['content_hash'],
-            'the hash should be sent along',
-        );
-    }
-
-    public function testJsonSerializeIsThePortContract(): void
-    {
-        $doc = $this->createFilledDocument();
-
-        $this->assertEquals(
-            $doc->getFields(),
-            $doc->jsonSerialize(),
-            'the port representation should be the document itself',
-        );
-        $this->assertJsonStringEqualsJsonString(
-            (string) json_encode($doc->getFields()),
-            (string) json_encode($doc),
-            'the document should be encodable directly',
-        );
-    }
-
-    private function createFilledDocument(): GenAiDocument
+    public function testCategoriesAreSerialized(): void
     {
         $doc = new GenAiDocument();
-        $doc->title = 'title';
-        $doc->description = 'description';
-        $doc->content = 'content';
-        return $doc;
-    }
-
-    public function testGetMeta(): void
-    {
-        $doc = new GenAiDocument();
-        $doc->setMeta('department', 'culture');
+        $doc->categories = [new Category('12', 'Dokumente')];
 
         $this->assertEquals(
-            ['department' => 'culture'],
-            $doc->getMeta(),
-            'unexpected meta',
+            [['id' => '12', 'name' => 'Dokumente']],
+            $doc->jsonSerialize()['categories'],
+            'unexpected categories',
         );
     }
 }

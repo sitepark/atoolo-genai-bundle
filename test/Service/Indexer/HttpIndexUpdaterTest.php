@@ -25,41 +25,88 @@ class HttpIndexUpdaterTest extends TestCase
                 'https://genai.example.com',
             ),
             new GenAiDocumentFactory(),
-            'www',
         );
 
         $this->expectException(InvalidArgumentException::class);
         $updater->addDocument($this->createStub(IndexDocument::class));
     }
 
-    public function testRejectedDocumentsAreReported(): void
+    public function testBulkIsSentAsAList(): void
     {
+        $requests = [];
+        $client = new MockHttpClient(
+            static function (
+                string $method,
+                string $url,
+                array $options,
+            ) use (&$requests): MockResponse {
+                $requests[] = [
+                    'method' => $method,
+                    'url' => $url,
+                    'body' => (string) ($options['body'] ?? ''),
+                ];
+                return new MockResponse('{"documents":1,"chunks":4}');
+            },
+        );
         $updater = new HttpIndexUpdater(
-            new GenAiHttpClient(
-                new MockHttpClient(new MockResponse(
-                    '{"accepted":1,"rejected":1,"errors":{"7":"too long"}}',
-                )),
-                'https://genai.example.com',
-            ),
+            new GenAiHttpClient($client, 'https://genai.example.com'),
             new GenAiDocumentFactory(),
-            'www',
+        );
+
+        $doc = $updater->createDocument();
+        $doc->id = '7';
+        $updater->addDocument($doc);
+        $updater->update();
+
+        $this->assertEquals('POST', $requests[0]['method'], 'unexpected method');
+        $this->assertEquals(
+            'https://genai.example.com/api/index/documents',
+            $requests[0]['url'],
+            'unexpected url',
+        );
+        $this->assertEquals(
+            '[{"type":"article","id":"7"}]',
+            $requests[0]['body'],
+            'the documents should be sent as a bare list',
+        );
+    }
+
+    public function testCountsAreTakenFromTheResponse(): void
+    {
+        $requests = 0;
+        $updater = $this->createUpdater(
+            '{"documents":1,"chunks":4}',
+            $requests,
         );
         $updater->addDocument($updater->createDocument());
 
         $result = $updater->update();
 
-        $this->assertFalse($result->isSuccess(), 'should not be a success');
-        $this->assertStringContainsString(
-            '7: too long',
-            (string) $result->getErrorMessage(),
-            'the error message should name the document',
+        $this->assertTrue($result->isSuccess(), 'should be a success');
+        $this->assertEquals(1, $result->getAccepted(), 'unexpected accepted');
+        $this->assertEquals(4, $result->getChunks(), 'unexpected chunks');
+    }
+
+    public function testDocumentsMissingFromTheCountAreRejected(): void
+    {
+        $requests = 0;
+        $updater = $this->createUpdater(
+            '{"documents":1,"chunks":2}',
+            $requests,
         );
+        $updater->addDocument($updater->createDocument());
+        $updater->addDocument($updater->createDocument());
+
+        $result = $updater->update();
+
+        $this->assertFalse($result->isSuccess(), 'should not be a success');
+        $this->assertEquals(1, $result->getRejected(), 'unexpected rejected');
     }
 
     public function testClearDocumentsDropsTheBuffer(): void
     {
         $requests = 0;
-        $updater = $this->createUpdater('{"accepted":1}', $requests);
+        $updater = $this->createUpdater('{"documents":1}', $requests);
         $updater->addDocument($updater->createDocument());
         $updater->clearDocuments();
 
@@ -80,7 +127,7 @@ class HttpIndexUpdaterTest extends TestCase
         $this->assertEquals(0, $requests, 'an empty bulk must not be sent');
     }
 
-    public function testResponseWithoutCountsIsASuccess(): void
+    public function testResponseWithoutCountsRejectsEverything(): void
     {
         $requests = 0;
         $updater = $this->createUpdater('{}', $requests);
@@ -88,12 +135,17 @@ class HttpIndexUpdaterTest extends TestCase
 
         $result = $updater->update();
 
-        $this->assertTrue($result->isSuccess(), 'no rejected, no errors');
+        $this->assertFalse(
+            $result->isSuccess(),
+            'without a count nothing is known to have been written',
+        );
         $this->assertEquals(1, $requests, 'the bulk should be sent once');
     }
 
-    private function createUpdater(string $body, int &$requests): HttpIndexUpdater
-    {
+    private function createUpdater(
+        string $body,
+        int &$requests,
+    ): HttpIndexUpdater {
         $client = new MockHttpClient(
             static function () use ($body, &$requests): MockResponse {
                 $requests++;
@@ -103,7 +155,6 @@ class HttpIndexUpdaterTest extends TestCase
         return new HttpIndexUpdater(
             new GenAiHttpClient($client, 'https://genai.example.com'),
             new GenAiDocumentFactory(),
-            'www',
         );
     }
 }

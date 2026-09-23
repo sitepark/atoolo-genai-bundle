@@ -13,9 +13,11 @@ use Atoolo\Resource\ResourceLanguage;
 /**
  * The GenAI application as an index target.
  *
- * One index per channel: embedding models are multilingual, so the documents
- * carry their `language` and `locale` instead of being spread over
- * language specific indices.
+ * The application knows no indices. It separates the content of the CMS
+ * instances by the `source` every document carries, and the indexer already
+ * passes that source to each of the calls below. The index name of the
+ * channel therefore never reaches the application; it only remains the name
+ * the indexer reports its progress under.
  */
 class HttpIndexService implements IndexService
 {
@@ -25,29 +27,25 @@ class HttpIndexService implements IndexService
         private readonly GenAiDocumentFactory $documentFactory,
     ) {}
 
+    /**
+     * One index per channel: embedding models are multilingual, so the
+     * documents of every language go to the same place.
+     */
     public function getIndex(ResourceLanguage $lang): string
     {
         return $this->resourceChannel->searchIndex;
     }
 
     /**
+     * The application holds no index the indexer could be asked about, so
+     * the index of this channel is the one and only it manages. Answering
+     * with anything else would make the indexer skip every resource.
+     *
      * @return string[]
      */
     public function getManagedIndices(): array
     {
-        $response = $this->client->request('GET', 'indices');
-
-        $indices = [];
-        /** @var array<array<string,mixed>> $list */
-        $list = is_array($response['indices'] ?? null)
-            ? $response['indices']
-            : [];
-        foreach ($list as $index) {
-            if (isset($index['name']) && is_string($index['name'])) {
-                $indices[] = $index['name'];
-            }
-        }
-        return $indices;
+        return [$this->getIndex(ResourceLanguage::default())];
     }
 
     public function updater(ResourceLanguage $lang): IndexUpdater
@@ -55,14 +53,13 @@ class HttpIndexService implements IndexService
         return new HttpIndexUpdater(
             $this->client,
             $this->documentFactory,
-            $this->getIndex($lang),
         );
     }
 
     public function health(): bool
     {
-        $this->client->request('GET', 'health');
-        return true;
+        $response = $this->client->request('GET', 'actuator/health');
+        return ($response['status'] ?? null) === 'UP';
     }
 
     /**
@@ -81,8 +78,8 @@ class HttpIndexService implements IndexService
     ): void {
         $this->client->request(
             'POST',
-            $this->indexPath($lang) . '/documents/cleanup',
-            ['source' => $source, 'process_id' => $processId],
+            'api/index/purge',
+            ['source' => $source, 'keepProcessId' => $processId],
         );
     }
 
@@ -98,29 +95,16 @@ class HttpIndexService implements IndexService
         }
         $this->client->request(
             'POST',
-            $this->indexPath(ResourceLanguage::default())
-            . '/documents/delete',
+            'api/index/documents/delete',
             ['source' => $source, 'ids' => array_values($idList)],
         );
     }
 
-    public function commit(ResourceLanguage $lang): void
-    {
-        $this->client->request(
-            'POST',
-            $this->indexPath($lang) . '/commit',
-            [],
-        );
-    }
+    /**
+     * Documents are searchable as soon as the bulk request returns, so there
+     * is nothing to commit.
+     */
+    public function commit(ResourceLanguage $lang): void {}
 
-    public function commitForAllLanguages(): void
-    {
-        $this->commit(ResourceLanguage::default());
-    }
-
-    private function indexPath(ResourceLanguage $lang): string
-    {
-        return 'indices/'
-            . GenAiHttpClient::encodeIndex($this->getIndex($lang));
-    }
+    public function commitForAllLanguages(): void {}
 }

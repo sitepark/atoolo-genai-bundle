@@ -6,13 +6,14 @@ namespace Atoolo\GenAi\Test\Service\Indexer;
 
 use Atoolo\GenAi\Service\Indexer\GenAiDocumentFactory;
 use Atoolo\GenAi\Service\Indexer\SiteKit\DefaultGenAiDocumentEnricher;
-use Atoolo\Index\Service\Indexer\ContentCollector;
 use Atoolo\Index\Service\Indexer\IndexDocumentDumper;
 use Atoolo\Resource\DataBag;
 use Atoolo\Resource\Loader\SiteKitNavigationHierarchyLoader;
 use Atoolo\Resource\Resource;
+use Atoolo\Resource\ResourceChannel;
 use Atoolo\Resource\ResourceLanguage;
 use Atoolo\Resource\ResourceLoader;
+use Atoolo\Resource\ResourceTenant;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,7 +23,7 @@ use PHPUnit\Framework\TestCase;
  */
 class GenAiDumpTest extends TestCase
 {
-    public function testDumpProducesSnakeCaseJson(): void
+    public function testDumpProducesTheDocumentOfTheRemoteApi(): void
     {
         $dumper = new IndexDocumentDumper(
             $this->createResourceLoader(),
@@ -35,44 +36,29 @@ class GenAiDumpTest extends TestCase
 
         $this->assertCount(1, $dump, 'one document expected');
         // the dumper hands back the document; the command json_encodes it
-        $fields = $dump[0]->jsonSerialize();
+        $data = $dump[0]->jsonSerialize();
 
-        $this->assertEquals('123', $fields['id'], 'unexpected id');
-        $this->assertEquals('genai', $fields['source'], 'unexpected source');
+        $this->assertEquals('article', $data['type'], 'unexpected type');
+        $this->assertEquals('123', $data['id'], 'unexpected id');
+        $this->assertEquals('genai', $data['source'], 'unexpected source');
+        $this->assertEquals('A title', $data['title'], 'unexpected title');
         $this->assertEquals(
-            'A title',
-            $fields['title'],
-            'unexpected title',
-        );
-        $this->assertEquals(
-            'de',
-            $fields['language'],
-            'unexpected language',
-        );
-        $this->assertEquals(
-            'de_DE',
-            $fields['locale'],
-            'the full locale should be part of the document',
-        );
-        $this->assertStringStartsWith(
-            'sha256:',
-            $fields['content_hash'],
-            'the dump should carry the content hash',
+            [
+                [
+                    'type' => 'text',
+                    'headline' => 'Öffnungszeiten',
+                    'html' => '<p>Montags geschlossen.</p>',
+                ],
+            ],
+            $data['content'],
+            'the dump should carry the content sections',
         );
 
-        foreach (array_keys($fields) as $key) {
-            $this->assertMatchesRegularExpression(
-                '/^[a-z][a-z0-9_]*$/',
-                (string) $key,
-                'all json keys should be snake_case',
-            );
-        }
-
-        $json = json_encode($fields, JSON_THROW_ON_ERROR);
+        $json = json_encode($data, JSON_THROW_ON_ERROR);
         $this->assertStringContainsString(
-            '"object_type":"content"',
+            '"objectType":"content"',
             $json,
-            'the dump should be encodable as json',
+            'the json keys are the camelCase keys of the remote api',
         );
     }
 
@@ -97,24 +83,31 @@ class GenAiDumpTest extends TestCase
         $navigationLoader = $this->createStub(
             SiteKitNavigationHierarchyLoader::class,
         );
-        $navigationLoader->method('loadRoot')->willReturn(
-            new Resource(
-                '',
-                'root',
-                '',
-                '',
-                ResourceLanguage::default(),
-                new DataBag(['siteGroup' => ['id' => 999]]),
-            ),
-        );
-
-        $contentCollector = $this->createStub(ContentCollector::class);
-        $contentCollector->method('collect')->willReturn('collected content');
 
         return new DefaultGenAiDocumentEnricher(
             $navigationLoader,
-            $contentCollector,
+            $this->createResourceChannel(),
             'genai',
+        );
+    }
+
+    private function createResourceChannel(): ResourceChannel
+    {
+        return new ResourceChannel(
+            '',
+            'WWW',
+            '',
+            'www.example.com',
+            false,
+            '',
+            '',
+            '',
+            '',
+            '',
+            'www',
+            [],
+            new DataBag([]),
+            $this->createStub(ResourceTenant::class),
         );
     }
 
@@ -132,6 +125,28 @@ class GenAiDumpTest extends TestCase
                 'url' => '/a/b.php',
                 'base' => ['title' => 'A title'],
                 'metadata' => ['description' => 'A description'],
+                'content' => [
+                    'type' => 'ROOT',
+                    'items' => [
+                        [
+                            'type' => 'main',
+                            'items' => [
+                                [
+                                    'type' => 'text',
+                                    'model' => [
+                                        'modelType' => 'content.text',
+                                        'headline' => 'Öffnungszeiten',
+                                        'richText' => [
+                                            'modelType' => 'html.richText',
+                                            'text' => '<p>Montags '
+                                                . 'geschlossen.</p>',
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
             ]),
         ));
         return $loader;

@@ -14,6 +14,11 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Talks to the GenAI application. Every response is turned into an array,
  * every failure into a {@see GenAiRequestException}, so that no transport
  * detail leaks into the services above.
+ *
+ * The client prepends nothing but the base url. The GenAI application serves
+ * the indexing API under `/api`, its health under `/actuator/health` and
+ * answers questions under `/graphql`, so a common prefix would only be in the
+ * way; the caller names the full path.
  */
 class GenAiHttpClient
 {
@@ -24,7 +29,7 @@ class GenAiHttpClient
     ) {}
 
     /**
-     * @param array<string,mixed>|null $json
+     * @param array<string,mixed>|list<mixed>|null $json
      * @return array<string,mixed>
      * @throws GenAiRequestException
      */
@@ -33,7 +38,7 @@ class GenAiHttpClient
         string $path,
         ?array $json = null,
     ): array {
-        $url = rtrim($this->baseUrl, '/') . '/api/v1/' . ltrim($path, '/');
+        $url = rtrim($this->baseUrl, '/') . '/' . ltrim($path, '/');
 
         $options = ['headers' => $this->headers()];
         if ($json !== null) {
@@ -58,7 +63,7 @@ class GenAiHttpClient
                 return [];
             }
             /** @var array<string,mixed> $data */
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR | JSON_THROW_ON_ERROR);
+            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
             return $data;
         } catch (GenAiRequestException $e) {
             throw $e;
@@ -78,11 +83,6 @@ class GenAiHttpClient
         }
     }
 
-    public static function encodeIndex(string $index): string
-    {
-        return rawurlencode($index);
-    }
-
     /**
      * @return array<string,string>
      */
@@ -93,7 +93,7 @@ class GenAiHttpClient
             'Content-Type' => 'application/json',
         ];
         if ($this->apiKey !== '') {
-            $headers['Authorization'] = 'Bearer ' . $this->apiKey;
+            $headers['X-API-Key'] = $this->apiKey;
         }
         return $headers;
     }

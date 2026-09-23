@@ -38,25 +38,23 @@ class HttpIndexServiceTest extends TestCase
 
     public function testGetManagedIndices(): void
     {
-        $service = $this->createService(
-            '{"indices":[{"name":"www","documents":123},{"documents":1}]}',
-        );
+        $service = $this->createService('{}');
 
         $this->assertEquals(
             ['www'],
             $service->getManagedIndices(),
-            'unexpected indices',
+            'the index of the channel is the only one there is',
         );
-        $this->assertEquals(
-            'https://genai.example.com/api/v1/indices',
-            $this->requests[0]['url'],
-            'unexpected url',
+        $this->assertCount(
+            0,
+            $this->requests,
+            'the application holds no index it could be asked about',
         );
     }
 
     public function testUpdaterSendsBulk(): void
     {
-        $service = $this->createService('{"accepted":1,"rejected":0}');
+        $service = $this->createService('{"documents":1,"chunks":3}');
 
         $updater = $service->updater(ResourceLanguage::default());
         $document = $updater->createDocument();
@@ -67,12 +65,12 @@ class HttpIndexServiceTest extends TestCase
 
         $this->assertTrue($result->isSuccess(), 'unexpected result');
         $this->assertEquals(
-            'PUT',
+            'POST',
             $this->requests[0]['method'],
             'unexpected method',
         );
         $this->assertEquals(
-            'https://genai.example.com/api/v1/indices/www/documents',
+            'https://genai.example.com/api/index/documents',
             $this->requests[0]['url'],
             'unexpected url',
         );
@@ -120,7 +118,7 @@ class HttpIndexServiceTest extends TestCase
         $service->deleteByIdListForAllLanguages('genai', ['123']);
 
         $this->assertEquals(
-            'https://genai.example.com/api/v1/indices/www/documents/delete',
+            'https://genai.example.com/api/index/documents/delete',
             $this->requests[0]['url'],
             'unexpected url',
         );
@@ -155,27 +153,28 @@ class HttpIndexServiceTest extends TestCase
         );
 
         $this->assertEquals(
-            'https://genai.example.com/api/v1/indices/www/documents/cleanup',
+            'https://genai.example.com/api/index/purge',
             $this->requests[0]['url'],
             'unexpected url',
         );
         $this->assertEquals(
-            '{"source":"genai","process_id":"p-1"}',
+            '{"source":"genai","keepProcessId":"p-1"}',
             $this->requests[0]['body'],
             'unexpected body',
         );
     }
 
-    public function testCommit(): void
+    public function testCommitIsANoOp(): void
     {
-        $service = $this->createService('', 204);
+        $service = $this->createService('{}');
 
+        $service->commit(ResourceLanguage::default());
         $service->commitForAllLanguages();
 
-        $this->assertEquals(
-            'https://genai.example.com/api/v1/indices/www/commit',
-            $this->requests[0]['url'],
-            'unexpected url',
+        $this->assertCount(
+            0,
+            $this->requests,
+            'documents are searchable right away, nothing to commit',
         );
     }
 
@@ -194,14 +193,21 @@ class HttpIndexServiceTest extends TestCase
 
     public function testHealth(): void
     {
-        $service = $this->createService('{}');
+        $service = $this->createService('{"status":"UP"}');
 
         $this->assertTrue($service->health(), 'unexpected health');
         $this->assertEquals(
-            'https://genai.example.com/api/v1/health',
+            'https://genai.example.com/actuator/health',
             $this->requests[0]['url'],
             'unexpected url',
         );
+    }
+
+    public function testHealthOfAnApplicationThatIsNotUp(): void
+    {
+        $service = $this->createService('{"status":"DOWN"}');
+
+        $this->assertFalse($service->health(), 'unexpected health');
     }
 
     private function createService(
@@ -248,17 +254,6 @@ class HttpIndexServiceTest extends TestCase
             [],
             new DataBag([]),
             $this->createMock(ResourceTenant::class),
-        );
-    }
-
-    public function testGetManagedIndicesWithoutIndicesKey(): void
-    {
-        $service = $this->createService('{}');
-
-        $this->assertEquals(
-            [],
-            $service->getManagedIndices(),
-            'a response without indices should yield none',
         );
     }
 }

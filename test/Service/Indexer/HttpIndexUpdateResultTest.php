@@ -13,7 +13,7 @@ class HttpIndexUpdateResultTest extends TestCase
 {
     public function testIsSuccess(): void
     {
-        $result = new HttpIndexUpdateResult(5);
+        $result = new HttpIndexUpdateResult(5, 0, 12);
 
         $this->assertTrue($result->isSuccess(), 'should be a success');
         $this->assertNull(
@@ -21,29 +21,29 @@ class HttpIndexUpdateResultTest extends TestCase
             'a success has no error message',
         );
         $this->assertEquals(5, $result->getAccepted(), 'unexpected accepted');
+        $this->assertEquals(12, $result->getChunks(), 'unexpected chunks');
     }
 
-    public function testRejectedWithoutErrors(): void
+    public function testRejected(): void
     {
         $result = new HttpIndexUpdateResult(1, 2);
 
         $this->assertFalse($result->isSuccess(), 'should not be a success');
         $this->assertEquals(
-            '2 documents were rejected',
+            '2 of 3 documents were not indexed',
             $result->getErrorMessage(),
             'unexpected error message',
         );
         $this->assertEquals(2, $result->getRejected(), 'unexpected rejected');
     }
 
-    public function testRejectedWithErrors(): void
+    public function testEmptyResultIsSuccess(): void
     {
-        $result = new HttpIndexUpdateResult(1, 1, ['123' => 'too long']);
+        $result = new HttpIndexUpdateResult();
 
-        $this->assertEquals(
-            '1 documents were rejected - 123: too long',
-            $result->getErrorMessage(),
-            'the error message should name the document',
+        $this->assertTrue(
+            $result->isSuccess(),
+            'a bulk that sent nothing is a success',
         );
     }
 }

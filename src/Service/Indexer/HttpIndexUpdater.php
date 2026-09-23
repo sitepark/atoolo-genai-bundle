@@ -23,7 +23,6 @@ class HttpIndexUpdater implements IndexUpdater
     public function __construct(
         private readonly GenAiHttpClient $client,
         private readonly GenAiDocumentFactory $documentFactory,
-        private readonly string $index,
     ) {}
 
     public function createDocument(): GenAiDocument
@@ -58,25 +57,23 @@ class HttpIndexUpdater implements IndexUpdater
 
         $payload = [];
         foreach ($documents as $document) {
-            $payload[] = $document->getFields();
+            $payload[] = $document->jsonSerialize();
         }
 
         $response = $this->client->request(
-            'PUT',
-            'indices/' . GenAiHttpClient::encodeIndex($this->index)
-            . '/documents',
-            ['documents' => $payload],
+            'POST',
+            'api/index/documents',
+            $payload,
         );
 
-        /** @var array<string,string> $errors */
-        $errors = is_array($response['errors'] ?? null)
-            ? $response['errors']
-            : [];
+        $accepted = is_int($response['documents'] ?? null)
+            ? $response['documents']
+            : 0;
 
         return new HttpIndexUpdateResult(
-            is_int($response['accepted'] ?? null) ? $response['accepted'] : 0,
-            is_int($response['rejected'] ?? null) ? $response['rejected'] : 0,
-            $errors,
+            $accepted,
+            max(0, count($documents) - $accepted),
+            is_int($response['chunks'] ?? null) ? $response['chunks'] : 0,
         );
     }
 }

@@ -4,115 +4,62 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Service\Indexer;
 
+use Atoolo\GenAi\Dto\Indexer\Category;
+use Atoolo\GenAi\Dto\Indexer\ContentSection;
 use Atoolo\Index\Service\Indexer\IndexDocument;
 use DateTimeInterface;
 
 /**
  * The document that is sent to the GenAI application.
  *
- * The property names are the JSON keys of the remote API, so the mapping
- * lives in the property names and nowhere else. Fields that are not set are
- * left out of the payload.
+ * The property names are the JSON keys of the remote API - camelCase, as the
+ * application spells them - so the mapping lives in the property names and
+ * nowhere else. Fields that are not set are left out of the payload.
  *
- * The port of the index-bundle only asks a document to represent itself as
- * data, which {@see jsonSerialize()} does. That this representation happens
- * to be a flat map of fields is this target's decision; {@see getFields()} is
- * the bundle's own API, used by {@see HttpIndexUpdater} to build a bulk.
+ * The application knows two kinds of document and selects them by `type`: an
+ * article carries the sections it is made of, a medium the text that was
+ * extracted from a binary asset. Both live in this one class, because the
+ * enricher receives the document from the factory before it has seen the
+ * resource and may only fill it in, never exchange it. {@see jsonSerialize()}
+ * sends the fields of the kind the document was set to.
  */
 class GenAiDocument implements IndexDocument
 {
+    public const TYPE_ARTICLE = 'article';
+    public const TYPE_MEDIA = 'media';
+
+    public string $type = self::TYPE_ARTICLE;
     public ?string $id = null;
     public ?string $source = null;
-    public ?string $process_id = null;
-    public ?string $url = null;
+    public ?string $processId = null;
+    public ?string $objectType = null;
     public ?string $title = null;
-    public ?string $headline = null;
-    public ?string $description = null;
-    public ?string $language = null;
-    public ?string $locale = null;
-    public ?string $object_type = null;
-    public ?string $content_type = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $content_types = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $keywords = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $categories = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $category_names = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $category_path = null;
-    public ?int $group = null;
-    /**
-     * @var int[]|null
-     */
-    public ?array $group_path = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $sites = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $include_groups = null;
-    /**
-     * @var string[]|null
-     */
-    public ?array $exclude_groups = null;
-    public ?bool $archived = null;
-    public ?DateTimeInterface $changed = null;
-    public ?DateTimeInterface $generated = null;
+    public ?string $url = null;
     public ?DateTimeInterface $date = null;
     /**
-     * @var DateTimeInterface[]|null
+     * @var Category[]
      */
-    public ?array $date_list = null;
-    public ?DateTimeInterface $valid_from = null;
-    public ?DateTimeInterface $valid_until = null;
-    public ?string $content = null;
-    public ?string $content_hash = null;
+    public array $categories = [];
 
     /**
-     * @var array<string,mixed>
+     * Only sent for an article.
      */
-    private array $meta = [];
-
-    public function setMeta(string $name, mixed $value): void
-    {
-        $this->meta[$name] = $value;
-    }
+    public ?string $headline = null;
+    /**
+     * The sections of an article, in the order the editor arranged them.
+     *
+     * @var ContentSection[]
+     */
+    public array $content = [];
 
     /**
-     * @return array<string,mixed>
+     * Only sent for a medium: the text the CMS extracted from the asset.
      */
-    public function getMeta(): array
-    {
-        return $this->meta;
-    }
+    public ?string $rawText = null;
 
-    /**
-     * The hash lets the GenAI application skip documents whose indexed
-     * content did not change, so that it does not embed them again. It is
-     * derived from the fields the embedding is built from.
-     */
-    public function getContentHash(): string
+    public function isMedia(): bool
     {
-        return $this->content_hash ??= 'sha256:' . hash(
-            'sha256',
-            ($this->title ?? '') . "\n"
-            . ($this->description ?? '') . "\n"
-            . ($this->content ?? ''),
-        );
+        return $this->type === self::TYPE_MEDIA;
     }
 
     /**
@@ -120,42 +67,53 @@ class GenAiDocument implements IndexDocument
      */
     public function jsonSerialize(): array
     {
-        return $this->getFields();
-    }
+        $data = ['type' => $this->type];
 
-    /**
-     * @return array<string,mixed>
-     */
-    public function getFields(): array
-    {
-        $this->getContentHash();
-
-        $fields = [];
-        foreach (get_object_vars($this) as $name => $value) {
-            if ($name === 'meta' || $value === null) {
-                continue;
+        foreach (
+            [
+                'id' => $this->id,
+                'source' => $this->source,
+                'processId' => $this->processId,
+                'objectType' => $this->objectType,
+                'title' => $this->title,
+                'url' => $this->url,
+            ] as $name => $value
+        ) {
+            if ($value !== null) {
+                $data[$name] = $value;
             }
-            $fields[$name] = $this->toFieldValue($value);
         }
 
-        if (!empty($this->meta)) {
-            $fields['meta'] = $this->meta;
+        if ($this->date !== null) {
+            $data['date'] = $this->date->format(DATE_ATOM);
         }
 
-        return $fields;
-    }
-
-    private function toFieldValue(mixed $value): mixed
-    {
-        if ($value instanceof DateTimeInterface) {
-            return $value->format(DATE_ATOM);
-        }
-        if (is_array($value)) {
-            return array_map(
-                fn($item) => $this->toFieldValue($item),
-                $value,
+        if (!empty($this->categories)) {
+            $data['categories'] = array_map(
+                static fn(Category $category): array
+                    => $category->jsonSerialize(),
+                array_values($this->categories),
             );
         }
-        return $value;
+
+        if ($this->isMedia()) {
+            if ($this->rawText !== null) {
+                $data['rawText'] = $this->rawText;
+            }
+            return $data;
+        }
+
+        if ($this->headline !== null) {
+            $data['headline'] = $this->headline;
+        }
+        if (!empty($this->content)) {
+            $data['content'] = array_map(
+                static fn(ContentSection $section): array
+                    => $section->jsonSerialize(),
+                array_values($this->content),
+            );
+        }
+
+        return $data;
     }
 }

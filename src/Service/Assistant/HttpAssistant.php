@@ -13,6 +13,13 @@ use Atoolo\GenAi\Exception\GenAiRequestException;
 use Atoolo\GenAi\Service\GenAiHttpClient;
 use Atoolo\Resource\ResourceChannel;
 
+/**
+ * Asks the GenAI application a question.
+ *
+ * Still speaks the REST contract this bundle defined before the application
+ * existed. The application answers questions through GraphQL instead, so this
+ * service is yet to be moved over; the indexer already speaks the real API.
+ */
 class HttpAssistant implements Assistant
 {
     public function __construct(
@@ -38,10 +45,8 @@ class HttpAssistant implements Assistant
         try {
             $response = $this->client->request(
                 'POST',
-                'indices/'
-                . GenAiHttpClient::encodeIndex(
-                    $this->resourceChannel->searchIndex,
-                )
+                'api/v1/indices/'
+                . rawurlencode($this->resourceChannel->searchIndex)
                 . '/ask',
                 $payload,
             );

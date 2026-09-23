@@ -19,11 +19,11 @@ class GenAiHttpClientTest extends TestCase
     {
         $requests = [];
         $client = $this->createClient(
-            new MockResponse('{"indices":[]}'),
+            new MockResponse('{"status":"UP"}'),
             $requests,
         );
 
-        $client->request('GET', 'indices');
+        $client->request('GET', 'actuator/health');
 
         $this->assertEquals(
             'GET',
@@ -31,9 +31,9 @@ class GenAiHttpClientTest extends TestCase
             'unexpected method',
         );
         $this->assertEquals(
-            'https://genai.example.com/api/v1/indices',
+            'https://genai.example.com/actuator/health',
             $requests[0]['url'],
-            'unexpected url',
+            'the client should prepend nothing but the base url',
         );
     }
 
@@ -42,7 +42,7 @@ class GenAiHttpClientTest extends TestCase
         $requests = [];
         $client = $this->createClient(new MockResponse('{}'), $requests);
 
-        $client->request('POST', 'indices/www/commit', ['a' => 'b']);
+        $client->request('POST', 'api/index/purge', ['a' => 'b']);
 
         $this->assertEquals(
             '{"a":"b"}',
@@ -51,7 +51,21 @@ class GenAiHttpClientTest extends TestCase
         );
     }
 
-    public function testRequestSendsBearerToken(): void
+    public function testRequestSendsListBody(): void
+    {
+        $requests = [];
+        $client = $this->createClient(new MockResponse('{}'), $requests);
+
+        $client->request('POST', 'api/index/documents', [['id' => '1']]);
+
+        $this->assertEquals(
+            '[{"id":"1"}]',
+            $requests[0]['body'],
+            'a bulk is sent as a bare list, not wrapped in an object',
+        );
+    }
+
+    public function testRequestSendsApiKeyHeader(): void
     {
         $requests = [];
         $client = $this->createClient(
@@ -60,26 +74,26 @@ class GenAiHttpClientTest extends TestCase
             'secret',
         );
 
-        $client->request('GET', 'health');
+        $client->request('GET', 'actuator/health');
 
         $this->assertContains(
-            'Authorization: Bearer secret',
+            'X-API-Key: secret',
             $requests[0]['headers'],
-            'the api key should be sent as a bearer token',
+            'the api key should be sent as the X-API-Key header',
         );
     }
 
-    public function testRequestWithoutApiKeySendsNoAuthorization(): void
+    public function testRequestWithoutApiKeySendsNoApiKeyHeader(): void
     {
         $requests = [];
         $client = $this->createClient(new MockResponse('{}'), $requests);
 
-        $client->request('GET', 'health');
+        $client->request('GET', 'actuator/health');
 
         $this->assertStringNotContainsString(
-            'Authorization',
+            'X-API-Key',
             implode(' ', $requests[0]['headers']),
-            'without an api key no authorization header should be sent',
+            'without an api key no key header should be sent',
         );
     }
 
@@ -93,7 +107,7 @@ class GenAiHttpClientTest extends TestCase
 
         $this->assertEquals(
             ['deleted' => 3],
-            $client->request('POST', 'indices/www/documents/delete', []),
+            $client->request('POST', 'api/index/documents/delete', []),
             'unexpected response',
         );
     }
@@ -108,7 +122,7 @@ class GenAiHttpClientTest extends TestCase
 
         $this->assertEquals(
             [],
-            $client->request('POST', 'indices/www/commit', []),
+            $client->request('POST', 'api/index/purge', []),
             'a 204 should produce an empty array',
         );
     }
@@ -122,7 +136,7 @@ class GenAiHttpClientTest extends TestCase
         );
 
         try {
-            $client->request('GET', 'health');
+            $client->request('GET', 'actuator/health');
             $this->fail('a 500 should throw');
         } catch (GenAiRequestException $e) {
             $this->assertEquals(
@@ -142,7 +156,7 @@ class GenAiHttpClientTest extends TestCase
         );
 
         $this->expectException(GenAiRequestException::class);
-        $client->request('GET', 'health');
+        $client->request('GET', 'actuator/health');
     }
 
     public function testTransportErrorIsWrapped(): void
@@ -157,16 +171,7 @@ class GenAiHttpClientTest extends TestCase
         );
 
         $this->expectException(GenAiRequestException::class);
-        $client->request('GET', 'health');
-    }
-
-    public function testEncodeIndex(): void
-    {
-        $this->assertEquals(
-            'www%2Ftest',
-            GenAiHttpClient::encodeIndex('www/test'),
-            'the index name should be url encoded',
-        );
+        $client->request('GET', 'actuator/health');
     }
 
     /**
@@ -207,7 +212,7 @@ class GenAiHttpClientTest extends TestCase
 
         $this->assertEquals(
             [],
-            $client->request('POST', 'indices/www/commit', []),
+            $client->request('POST', 'api/index/purge', []),
             'an empty 200 body should produce an empty array',
         );
     }
