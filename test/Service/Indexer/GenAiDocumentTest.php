@@ -55,6 +55,50 @@ class GenAiDocumentTest extends TestCase
         );
     }
 
+    public function testHashIsSent(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->id = '123';
+
+        $this->assertEquals(
+            $doc->contentHash(),
+            $doc->jsonSerialize()['hash'],
+            'unexpected hash',
+        );
+    }
+
+    public function testHashIgnoresTheProcessId(): void
+    {
+        $a = new GenAiDocument();
+        $a->id = '123';
+        $a->processId = 'run-1';
+        $b = new GenAiDocument();
+        $b->id = '123';
+        $b->processId = 'run-2';
+
+        $this->assertEquals(
+            $a->contentHash(),
+            $b->contentHash(),
+            'a new run alone must not change the hash',
+        );
+    }
+
+    public function testHashChangesWithTheContent(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->id = '123';
+        $doc->kicker = 'Rathaus';
+        $before = $doc->contentHash();
+
+        $doc->kicker = 'Bürgerservice';
+
+        $this->assertNotEquals(
+            $before,
+            $doc->contentHash(),
+            'a changed field must change the hash',
+        );
+    }
+
     public function testDateIsFormattedAsAtom(): void
     {
         $doc = new GenAiDocument();

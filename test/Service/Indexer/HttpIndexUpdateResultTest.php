@@ -37,6 +37,18 @@ class HttpIndexUpdateResultTest extends TestCase
         $this->assertEquals(2, $result->getRejected(), 'unexpected rejected');
     }
 
+    public function testUnchangedDocumentsAreNoError(): void
+    {
+        $result = new HttpIndexUpdateResult(1, 2, 3, 4);
+
+        $this->assertEquals(4, $result->getUnchanged(), 'unexpected unchanged');
+        $this->assertEquals(
+            '2 of 7 documents were not indexed',
+            $result->getErrorMessage(),
+            'the unchanged documents belong to the sent ones',
+        );
+    }
+
     public function testEmptyResultIsSuccess(): void
     {
         $result = new HttpIndexUpdateResult();

@@ -47,14 +47,23 @@ assistant.
 - `Dto\Indexer\` — the parts of a document: `Category` (a tree, through
   `parent`), `TextSection` (`headline` + `html`), `LinkSection`
   (`headline` + `Link[]`).
+- `GenAiDocument::contentHash()` — makes a full run a sync. Every document
+  carries a `hash` of its payload without the `processId`; the application
+  skips the embedding of a document whose hash it already holds and only
+  takes over the new `processId`, so the purge at the end of the run keeps
+  it. The hash is taken from the finished document, not from the
+  `generated` of the resource, because the enricher pulls in data the
+  resource does not change with: the inherited kicker, category titles, the
+  `serverName`, the keywords of other enrichers, the mapping itself.
 - `GenAiDocumentFactory` — feeds both the `HttpIndexUpdater` and the document
   dumper, so a dump and an index run always produce the same document. It
   sets the `channel`, which is no property of the resource.
 - `HttpIndexService` / `HttpIndexUpdater` — the `IndexService` and
   `IndexUpdater` ports of the index-bundle. The updater buffers a chunk and
   sends one bulk request; an empty bulk sends nothing. The application
-  reports only how many documents and chunks it wrote, so a document counts
-  as rejected when it is missing from that count.
+  reports only how many documents and chunks it wrote and how many it left
+  unchanged, so a document counts as rejected when it is missing from both
+  counts.
 - `SiteKit\DefaultGenAiDocumentEnricher` — maps a SiteKit resource onto the
   document. Unlike the Solr enricher it does not flatten the resource into one
   string: it walks the content tree and turns every block that carries text or
@@ -110,14 +119,16 @@ transport detail leaks upwards.
 | Purpose | Request |
 |---|---|
 | health | `GET /actuator/health` (`{"status":"UP"}`) |
-| bulk update | `POST /api/index/documents`, body is a bare list of documents, answers `{documents, chunks}` |
+| bulk update | `POST /api/index/documents`, body is a bare list of documents, answers `{documents, chunks, unchanged}` |
 | delete by id | `POST /api/index/documents/delete` `{channel, source, ids}` |
 | purge by process id | `POST /api/index/purge` `{channel, source, keepProcessId}` |
 | ask | GraphQL `POST /graphql`, query `question(systemPrompt!, userPrompt!, query!, language!, categoryIds)` |
 
 There is no commit; documents are searchable as soon as the bulk request
 returns. A document requires its `channel` - at most 64 letters, digits,
-`.`, `_` or `-`.
+`.`, `_` or `-`. Its `hash` is expected to let the application skip an
+unchanged document; `unchanged` in the answer counts those. Until the
+application compares it, it is ignored and every document is embedded.
 
 The contract is the one the application actually serves; `/v3/api-docs` of a
 running instance is its OpenAPI description, `/graphql` answers an

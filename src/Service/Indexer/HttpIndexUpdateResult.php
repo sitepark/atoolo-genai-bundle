@@ -9,11 +9,12 @@ use Atoolo\Index\Service\Indexer\IndexUpdateResult;
 /**
  * The outcome of one bulk request.
  *
- * The GenAI application answers with the number of documents it wrote and the
- * number of chunks it derived from them. It reports no error per document -
+ * The GenAI application answers with the number of documents it wrote, the
+ * number of chunks it derived from them and the number of documents it left
+ * as they were, because their `hash` had not changed. It reports no error per document -
  * a rejected bulk comes back as HTTP 400 and has already become a
  * `GenAiRequestException` by the time this result is built - so a document
- * counts as rejected when it is missing from the count the application
+ * counts as rejected when it is missing from both counts the application
  * returned.
  */
 class HttpIndexUpdateResult implements IndexUpdateResult
@@ -22,6 +23,7 @@ class HttpIndexUpdateResult implements IndexUpdateResult
         private readonly int $accepted = 0,
         private readonly int $rejected = 0,
         private readonly int $chunks = 0,
+        private readonly int $unchanged = 0,
     ) {}
 
     public function getAccepted(): int
@@ -43,6 +45,16 @@ class HttpIndexUpdateResult implements IndexUpdateResult
         return $this->chunks;
     }
 
+    /**
+     * The documents the application did not embed again, because their
+     * content was unchanged; it only took over their new `processId`. Not
+     * part of the port.
+     */
+    public function getUnchanged(): int
+    {
+        return $this->unchanged;
+    }
+
     public function isSuccess(): bool
     {
         return $this->rejected === 0;
@@ -54,7 +66,7 @@ class HttpIndexUpdateResult implements IndexUpdateResult
             return null;
         }
         return $this->rejected . ' of '
-            . ($this->accepted + $this->rejected)
+            . ($this->accepted + $this->unchanged + $this->rejected)
             . ' documents were not indexed';
     }
 }

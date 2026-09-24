@@ -60,6 +60,7 @@ class HttpIndexUpdaterTest extends TestCase
         $doc->id = '7';
         $updater->addDocument($doc);
         $updater->update();
+        $hash = $doc->contentHash();
 
         $this->assertEquals('POST', $requests[0]['method'], 'unexpected method');
         $this->assertEquals(
@@ -68,7 +69,8 @@ class HttpIndexUpdaterTest extends TestCase
             'unexpected url',
         );
         $this->assertEquals(
-            '[{"type":"article","id":"7","channel":"www"}]',
+            '[{"type":"article","id":"7","channel":"www","hash":"'
+                . $hash . '"}]',
             $requests[0]['body'],
             'the documents should be sent as a bare list',
         );
@@ -104,6 +106,27 @@ class HttpIndexUpdaterTest extends TestCase
 
         $this->assertFalse($result->isSuccess(), 'should not be a success');
         $this->assertEquals(1, $result->getRejected(), 'unexpected rejected');
+    }
+
+    public function testUnchangedDocumentsAreNotRejected(): void
+    {
+        $requests = 0;
+        $updater = $this->createUpdater(
+            '{"documents":1,"chunks":2,"unchanged":2}',
+            $requests,
+        );
+        $updater->addDocument($updater->createDocument());
+        $updater->addDocument($updater->createDocument());
+        $updater->addDocument($updater->createDocument());
+
+        $result = $updater->update();
+
+        $this->assertTrue(
+            $result->isSuccess(),
+            'an unchanged document is no error',
+        );
+        $this->assertEquals(1, $result->getAccepted(), 'unexpected accepted');
+        $this->assertEquals(2, $result->getUnchanged(), 'unexpected unchanged');
     }
 
     public function testClearDocumentsDropsTheBuffer(): void

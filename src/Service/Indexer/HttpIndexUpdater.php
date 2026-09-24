@@ -69,11 +69,15 @@ class HttpIndexUpdater implements IndexUpdater
         $accepted = is_int($response['documents'] ?? null)
             ? $response['documents']
             : 0;
+        $unchanged = is_int($response['unchanged'] ?? null)
+            ? $response['unchanged']
+            : 0;
 
         return new HttpIndexUpdateResult(
             $accepted,
-            max(0, count($documents) - $accepted),
+            max(0, count($documents) - $accepted - $unchanged),
             is_int($response['chunks'] ?? null) ? $response['chunks'] : 0,
+            $unchanged,
         );
     }
 }

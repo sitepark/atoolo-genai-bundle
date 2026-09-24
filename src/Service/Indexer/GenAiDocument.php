@@ -98,9 +98,40 @@ class GenAiDocument implements IndexDocument
     }
 
     /**
+     * Fingerprint of what the application embeds: the payload without the
+     * `processId`, which changes with every run. It is taken from the
+     * finished document rather than the resource, so that everything an
+     * enricher pulls in from elsewhere - an inherited kicker, the title of
+     * a category, the synonyms of another bundle - changes it as well. The
+     * application compares it to skip the embedding of an unchanged
+     * document and only takes over the new `processId`.
+     */
+    public function contentHash(): string
+    {
+        $data = $this->payload();
+        unset($data['processId']);
+        return hash(
+            'sha256',
+            json_encode(
+                $data,
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
+                | JSON_UNESCAPED_UNICODE,
+            ),
+        );
+    }
+
+    /**
      * @return array<string,mixed>
      */
     public function jsonSerialize(): array
+    {
+        return $this->payload() + ['hash' => $this->contentHash()];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function payload(): array
     {
         $data = ['type' => $this->type];
 
