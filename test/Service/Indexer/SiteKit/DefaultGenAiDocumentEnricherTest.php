@@ -379,7 +379,11 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
             ],
         ]);
 
-        $this->assertEquals('The intro', $doc->intro, 'the intro should win');
+        $this->assertEquals(
+            '<p>The intro</p>',
+            $doc->intro,
+            'the intro should win',
+        );
     }
 
     public function testIntroFallsBackToTheDescription(): void
@@ -389,9 +393,22 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         ]);
 
         $this->assertEquals(
-            'The description',
+            '<p>The description</p>',
             $doc->intro,
             'the description should be the fallback',
+        );
+    }
+
+    public function testIntroIsEscaped(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => ['intro' => 'Bus & Bahn <kostenlos>'],
+        ]);
+
+        $this->assertEquals(
+            '<p>Bus &amp; Bahn &lt;kostenlos&gt;</p>',
+            $doc->intro,
+            'the plain text of the CMS should not be read as markup',
         );
     }
 

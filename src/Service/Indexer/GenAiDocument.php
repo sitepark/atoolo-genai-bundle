@@ -63,7 +63,7 @@ class GenAiDocument implements IndexDocument
      */
     public ?string $headline = null;
     /**
-     * Only sent for an article.
+     * Only sent for an article, as an HTML fragment.
      */
     public ?string $intro = null;
     /**

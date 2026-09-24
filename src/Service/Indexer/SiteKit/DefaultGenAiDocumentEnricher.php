@@ -232,7 +232,7 @@ class DefaultGenAiDocumentEnricher implements
             ?: $metadata->getString('headline')
             ?: $base->getString('title');
         $document->kicker = $this->kicker($resource);
-        $document->intro = $this->nonEmpty(
+        $document->intro = $this->toParagraph(
             $metadata->getString('intro')
             ?: $metadata->getString('description'),
         );
@@ -302,6 +302,16 @@ class DefaultGenAiDocumentEnricher implements
         }
 
         return null;
+    }
+
+    /**
+     * The application reads the intro as HTML, the CMS keeps it as plain
+     * text, so it is escaped into a paragraph of its own.
+     */
+    private function toParagraph(string $text): ?string
+    {
+        $text = $this->nonEmpty($text);
+        return $text === null ? null : '<p>' . $this->escape($text) . '</p>';
     }
 
     private function nonEmpty(string $text): ?string

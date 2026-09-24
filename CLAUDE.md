@@ -67,7 +67,8 @@ assistant.
   `intro` next to its `headline`: the kicker is the one of the teaser or the
   resource, otherwise inherited from the nearest navigation ancestor that has
   one, as the `ResourceKickerResolver` of the graphql-search-bundle does; the
-  intro is `metadata.intro`, falling back to `metadata.description`. Every
+  intro is `metadata.intro`, falling back to `metadata.description`, escaped
+  into a paragraph, because the application reads it as HTML. Every
   document carries the `keywords` the text may not contain: `metadata.keywords`
   and `metadata.boostKeywords`, added through `GenAiDocument::addKeywords()`,
   which other enrichers - the synonyms of the citygov-bundle - use as well;
