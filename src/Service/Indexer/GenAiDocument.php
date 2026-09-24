@@ -45,6 +45,14 @@ class GenAiDocument implements IndexDocument
      * @var Category[]
      */
     public array $categories = [];
+    /**
+     * Terms the document is to be found by although its text may not
+     * contain them, e.g. the synonyms of a service. Sent for both kinds of
+     * document; fill it through {@see addKeywords()}.
+     *
+     * @var string[]
+     */
+    public array $keywords = [];
 
     /**
      * Only sent for an article.
@@ -69,6 +77,20 @@ class GenAiDocument implements IndexDocument
      * Only sent for a medium: the text the CMS extracted from the asset.
      */
     public ?string $rawText = null;
+
+    /**
+     * Adds keywords, stripped and without the empty ones, and keeps every
+     * keyword only once, so that several enrichers can contribute theirs.
+     */
+    public function addKeywords(string ...$keywords): void
+    {
+        foreach ($keywords as $keyword) {
+            $keyword = trim($keyword);
+            if ($keyword !== '' && !in_array($keyword, $this->keywords, true)) {
+                $this->keywords[] = $keyword;
+            }
+        }
+    }
 
     public function isMedia(): bool
     {
@@ -108,6 +130,10 @@ class GenAiDocument implements IndexDocument
                     => $category->jsonSerialize(),
                 array_values($this->categories),
             );
+        }
+
+        if (!empty($this->keywords)) {
+            $data['keywords'] = array_values($this->keywords);
         }
 
         if ($this->isMedia()) {

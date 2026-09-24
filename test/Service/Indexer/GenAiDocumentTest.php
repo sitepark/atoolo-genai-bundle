@@ -136,6 +136,53 @@ class GenAiDocumentTest extends TestCase
         $this->assertArrayNotHasKey('intro', $data, 'unexpected intro');
     }
 
+    public function testKeywordsAreSent(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->addKeywords('Perso', 'Ausweis');
+
+        $this->assertEquals(
+            ['Perso', 'Ausweis'],
+            $doc->jsonSerialize()['keywords'],
+            'unexpected keywords',
+        );
+    }
+
+    public function testWithoutKeywordsNoneAreSent(): void
+    {
+        $this->assertArrayNotHasKey(
+            'keywords',
+            (new GenAiDocument())->jsonSerialize(),
+            'an empty list should not be sent',
+        );
+    }
+
+    public function testAddKeywordsKeepsEveryKeywordOnce(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->addKeywords(' Perso ', '', 'Ausweis');
+        $doc->addKeywords('Perso', '  ');
+
+        $this->assertEquals(
+            ['Perso', 'Ausweis'],
+            $doc->keywords,
+            'keywords should be trimmed, empty ones dropped, each kept once',
+        );
+    }
+
+    public function testAMediumSendsItsKeywords(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->type = GenAiDocument::TYPE_MEDIA;
+        $doc->addKeywords('Erntehelfer');
+
+        $this->assertEquals(
+            ['Erntehelfer'],
+            $doc->jsonSerialize()['keywords'],
+            'a medium should be found by its keywords as well',
+        );
+    }
+
     public function testMediaSendsRawTextOnly(): void
     {
         $doc = new GenAiDocument();

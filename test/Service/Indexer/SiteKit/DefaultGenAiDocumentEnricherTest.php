@@ -80,6 +80,45 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testKeywordsAndBoostKeywords(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => [
+                'keywords' => ['Perso', 'Ausweis'],
+                'boostKeywords' => ['Ausweis', 'Personalausweis'],
+            ],
+        ]);
+
+        $this->assertEquals(
+            ['Perso', 'Ausweis', 'Personalausweis'],
+            $doc->keywords,
+            'keywords and boost keywords should be merged, each once',
+        );
+    }
+
+    public function testAMediumGetsItsKeywords(): void
+    {
+        $doc = $this->enrichWithData([
+            'media' => true,
+            'metadata' => ['keywords' => ['Erntehelfer']],
+        ]);
+
+        $this->assertEquals(
+            ['Erntehelfer'],
+            $doc->keywords,
+            'a medium should be found by its keywords as well',
+        );
+    }
+
+    public function testKeywordsThatAreNoStringsAreSkipped(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => ['keywords' => ['Perso', 7, null, ['x']]],
+        ]);
+
+        $this->assertEquals(['Perso'], $doc->keywords, 'unexpected keywords');
+    }
+
     public function testEnrichWithoutDate(): void
     {
         $doc = $this->enrichWithData([]);

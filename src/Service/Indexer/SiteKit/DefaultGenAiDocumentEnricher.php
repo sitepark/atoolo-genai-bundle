@@ -128,6 +128,29 @@ class DefaultGenAiDocumentEnricher implements
             $data->getString('mediaUrl') ?: $data->getString('url'),
         );
         $document->date = $this->toDateTime($base->getInt('date'));
+
+        $this->enrichKeywords($resource, $document);
+    }
+
+    /**
+     * The keywords of the editors and the terms they want the resource to be
+     * found by. The Solr index boosts the latter; to a semantic search both
+     * are words the text may not contain.
+     */
+    private function enrichKeywords(
+        Resource $resource,
+        GenAiDocument $document,
+    ): void {
+        $metadata = new DataBag(
+            $resource->data->getAssociativeArray('metadata'),
+        );
+        foreach (['keywords', 'boostKeywords'] as $name) {
+            $document->addKeywords(
+                ...array_values(
+                    array_filter($metadata->getArray($name), 'is_string'),
+                ),
+            );
+        }
     }
 
     /**
