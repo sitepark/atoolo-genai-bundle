@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Service\Indexer;
 
-use Atoolo\Index\Service\Indexer\IndexUpdateResult;
+use Atoolo\Index\Service\Indexer\IndexUpdateResultWithUnchanged;
 
 /**
  * The outcome of one bulk request.
@@ -17,7 +17,7 @@ use Atoolo\Index\Service\Indexer\IndexUpdateResult;
  * counts as rejected when it is missing from both counts the application
  * returned.
  */
-class HttpIndexUpdateResult implements IndexUpdateResult
+class HttpIndexUpdateResult implements IndexUpdateResultWithUnchanged
 {
     public function __construct(
         private readonly int $accepted = 0,
@@ -47,8 +47,8 @@ class HttpIndexUpdateResult implements IndexUpdateResult
 
     /**
      * The documents the application did not embed again, because their
-     * content was unchanged; it only took over their new `processId`. Not
-     * part of the port.
+     * content was unchanged; it only took over their new `processId`. The
+     * indexer shows them as `unchanged` in its status.
      */
     public function getUnchanged(): int
     {

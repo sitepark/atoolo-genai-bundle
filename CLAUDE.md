@@ -127,7 +127,8 @@ transport detail leaks upwards.
 There is no commit; documents are searchable as soon as the bulk request
 returns. A document requires its `channel` - at most 64 letters, digits,
 `.`, `_` or `-`. Its `hash` is expected to let the application skip an
-unchanged document; `unchanged` in the answer counts those. Until the
+unchanged document; `unchanged` in the answer counts those, and the
+indexer shows the number in its status line. Until the
 application compares it, it is ignored and every document is embedded.
 
 The contract is the one the application actually serves; `/v3/api-docs` of a
