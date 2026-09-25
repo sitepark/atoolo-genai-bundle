@@ -104,9 +104,13 @@ the API.
 rejects every resource whose language is not the `locale` of the
 `ResourceChannel`; the solr indexer keeps the unwrapped filter.
 
-The indexer runs under the source `genai` and is configured by its own
-`configs/indexer/genai.php`, so it can be enabled separately from the solr
-indexer (`internal.php`).
+**Id and source.** The indexer reads the same resources as the solr
+indexer, so its documents carry the same source, `internal`. What sets it
+apart is its id `genai` (see `AbstractIndexer` of the index-bundle): it
+selects the indexer on the console (`--indexer genai`) and in the schedule,
+keys its status and names its configuration `configs/indexer/genai.php`, so
+it can be enabled separately from the solr indexer (`internal.php`). The
+progress state and the dumper are given the id as well.
 
 ### HTTP contract (`src/Service/GenAiHttpClient.php`)
 

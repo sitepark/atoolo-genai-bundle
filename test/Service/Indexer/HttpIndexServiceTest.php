@@ -115,7 +115,7 @@ class HttpIndexServiceTest extends TestCase
     {
         $service = $this->createService('{"deleted":1}');
 
-        $service->deleteByIdListForAllLanguages('genai', ['123']);
+        $service->deleteByIdListForAllLanguages('internal', ['123']);
 
         $this->assertEquals(
             'https://genai.example.com/api/index/documents/delete',
@@ -123,7 +123,7 @@ class HttpIndexServiceTest extends TestCase
             'unexpected url',
         );
         $this->assertEquals(
-            '{"channel":"www","source":"genai","ids":["123"]}',
+            '{"channel":"www","source":"internal","ids":["123"]}',
             $this->requests[0]['body'],
             'unexpected body',
         );
@@ -133,7 +133,7 @@ class HttpIndexServiceTest extends TestCase
     {
         $service = $this->createService('{}');
 
-        $service->deleteByIdListForAllLanguages('genai', []);
+        $service->deleteByIdListForAllLanguages('internal', []);
 
         $this->assertCount(
             0,
@@ -148,7 +148,7 @@ class HttpIndexServiceTest extends TestCase
 
         $service->deleteExcludingProcessId(
             ResourceLanguage::default(),
-            'genai',
+            'internal',
             'p-1',
         );
 
@@ -158,7 +158,7 @@ class HttpIndexServiceTest extends TestCase
             'unexpected url',
         );
         $this->assertEquals(
-            '{"channel":"www","source":"genai","keepProcessId":"p-1"}',
+            '{"channel":"www","source":"internal","keepProcessId":"p-1"}',
             $this->requests[0]['body'],
             'unexpected body',
         );
@@ -182,7 +182,7 @@ class HttpIndexServiceTest extends TestCase
     {
         $service = $this->createService('{}');
 
-        $service->prepareIndexing(ResourceLanguage::default(), 'genai');
+        $service->prepareIndexing(ResourceLanguage::default(), 'internal');
 
         $this->assertCount(
             0,

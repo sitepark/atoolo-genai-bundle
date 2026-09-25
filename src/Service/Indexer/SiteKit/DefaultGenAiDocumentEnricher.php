@@ -78,7 +78,7 @@ class DefaultGenAiDocumentEnricher implements
     public function __construct(
         private readonly SiteKitNavigationHierarchyLoader $navigationLoader,
         private readonly ResourceChannel $resourceChannel,
-        private readonly string $source = 'genai',
+        private readonly string $source = 'internal',
     ) {}
 
     public function cleanup(): void

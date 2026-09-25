@@ -9,8 +9,8 @@ use Atoolo\Resource\ResourceChannel;
 
 /**
  * Creates the GenAI document. The same factory feeds the
- * {@see HttpIndexUpdater} and the document dumper of the source `genai`, so
- * that a dump always shows what an index run writes.
+ * {@see HttpIndexUpdater} and the document dumper of the indexer `genai`,
+ * so that a dump always shows what an index run writes.
  *
  * The factory fills in the channel, because it is no property of the
  * resource: it is the index the documents are written to, the name

@@ -36,7 +36,7 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         $this->enricher = new DefaultGenAiDocumentEnricher(
             $this->navigationLoader,
             $this->createResourceChannel(),
-            'genai',
+            'internal',
         );
     }
 
@@ -56,7 +56,7 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         ]));
 
         $this->assertEquals('123', $doc->id, 'unexpected id');
-        $this->assertEquals('genai', $doc->source, 'unexpected source');
+        $this->assertEquals('internal', $doc->source, 'unexpected source');
         $this->assertEquals(
             'progress-id',
             $doc->processId,

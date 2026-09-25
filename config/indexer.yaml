@@ -20,7 +20,7 @@ services:
     arguments:
       - '@atoolo_resource.navigation_hierarchy_loader'
       - '@atoolo_resource.resource_channel'
-      - 'genai'
+      - 'internal'
     tags:
       - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }
 
@@ -35,25 +35,28 @@ services:
     arguments:
       - '@atoolo_index.index_name'
       - '@atoolo_index.indexer.status_store'
+      # the id of the indexer, which keys its status
       - 'genai'
 
   atoolo_genai.indexer.internal_resource_indexer:
     class: Atoolo\Index\Service\Indexer\InternalResourceIndexer
     arguments:
-      - !tagged_iterator atoolo_genai.indexer.document_enricher
-      - '@atoolo_genai.indexer.resource_filter'
-      - '@atoolo_genai.indexer.progress_state'
-      - '@atoolo_index.indexer.location_finder'
-      - '@atoolo_resource.resource_loader'
-      - '@atoolo_genai.indexer.index_service'
-      - '@atoolo_index.indexer.aborter'
-      - '@atoolo_index.indexer.configuration_loader'
-      - 'genai'
-      - '@atoolo_index.index_name'
+      $documentEnricherList: !tagged_iterator atoolo_genai.indexer.document_enricher
+      $resourceFilter: '@atoolo_genai.indexer.resource_filter'
+      $progressHandler: '@atoolo_genai.indexer.progress_state'
+      $finder: '@atoolo_index.indexer.location_finder'
+      $resourceLoader: '@atoolo_resource.resource_loader'
+      $indexService: '@atoolo_genai.indexer.index_service'
+      $aborter: '@atoolo_index.indexer.aborter'
+      $configLoader: '@atoolo_index.indexer.configuration_loader'
+      # the same resources the solr indexer reads
+      $source: 'internal'
+      $indexName: '@atoolo_index.index_name'
       # only offered once the CMS provides configs/indexer/genai.php
-      - false
-      - '@atoolo_index.indexer.php_limit_increaser'
-      - '@logger'
+      $enabledWithoutConfig: false
+      $limitIncreaser: '@atoolo_index.indexer.php_limit_increaser'
+      $logger: '@logger'
+      $id: 'genai'
     tags:
       - { name: 'atoolo_index.indexer', priority: 10 }
 
@@ -63,6 +66,7 @@ services:
       - '@atoolo_resource.resource_loader'
       - !tagged_iterator { tag: 'atoolo_genai.indexer.document_enricher' }
       - '@atoolo_genai.indexer.document_factory'
+      - 'internal'
       - 'genai'
     tags:
       - { name: 'atoolo_index.indexer.document_dumper' }

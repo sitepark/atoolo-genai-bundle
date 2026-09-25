@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Runs the generic dumper of the index-bundle with the GenAI factory and the
- * GenAI enricher, which is exactly what `index:dump-document --source genai`
+ * GenAI enricher, which is exactly what `index:dump-document --indexer genai`
  * does.
  */
 class GenAiDumpTest extends TestCase
@@ -29,6 +29,7 @@ class GenAiDumpTest extends TestCase
             $this->createResourceLoader(),
             [$this->createEnricher()],
             new GenAiDocumentFactory($this->createResourceChannel()),
+            'internal',
             'genai',
         );
 
@@ -41,7 +42,7 @@ class GenAiDumpTest extends TestCase
         $this->assertEquals('article', $data['type'], 'unexpected type');
         $this->assertEquals('123', $data['id'], 'unexpected id');
         $this->assertEquals('www', $data['channel'], 'unexpected channel');
-        $this->assertEquals('genai', $data['source'], 'unexpected source');
+        $this->assertEquals('internal', $data['source'], 'unexpected source');
         $this->assertEquals('A title', $data['title'], 'unexpected title');
         $this->assertEquals(
             [
@@ -63,19 +64,21 @@ class GenAiDumpTest extends TestCase
         );
     }
 
-    public function testDumpGetsSource(): void
+    public function testDumpGetsIdAndSource(): void
     {
         $dumper = new IndexDocumentDumper(
             $this->createResourceLoader(),
             [],
             new GenAiDocumentFactory($this->createResourceChannel()),
+            'internal',
             'genai',
         );
 
         $this->assertEquals(
-            'genai',
-            $dumper->getSource(),
-            'unexpected source',
+            ['genai', 'internal'],
+            [$dumper->getId(), $dumper->getSource()],
+            'the dumper should be found by its id and carry the source of '
+            . 'the solr indexer',
         );
     }
 
@@ -88,7 +91,7 @@ class GenAiDumpTest extends TestCase
         return new DefaultGenAiDocumentEnricher(
             $navigationLoader,
             $this->createResourceChannel(),
-            'genai',
+            'internal',
         );
     }
 

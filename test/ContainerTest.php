@@ -99,7 +99,7 @@ class ContainerTest extends TestCase
         $this->assertContains(
             'atoolo_genai.indexer.index_document_dumper',
             $this->tagged['atoolo_index.indexer.document_dumper'],
-            'the GenAI dumper should be selectable via --source genai',
+            'the GenAI dumper should be selectable via --indexer genai',
         );
     }
 
