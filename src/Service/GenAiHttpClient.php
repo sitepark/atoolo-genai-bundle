@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Service;
 
+use Atoolo\GenAi\Exception\GenAiGraphQlException;
 use Atoolo\GenAi\Exception\GenAiRequestException;
 use JsonException;
 use Symfony\Component\HttpClient\Exception\JsonException as HttpJsonException;
@@ -98,7 +99,8 @@ class GenAiHttpClient
      *
      * GraphQL reports a failed operation with status 200 and a list of
      * `errors`, which would otherwise go unnoticed; it becomes a
-     * {@see GenAiRequestException} like every other failure.
+     * {@see GenAiGraphQlException} that keeps the classification and the
+     * message of the first error.
      *
      * @param array<string,mixed> $variables
      * @return array<string,mixed>
@@ -128,8 +130,16 @@ class GenAiHttpClient
                     ? $error['message']
                     : 'unknown error';
             }
-            throw new GenAiRequestException(
+            $first = reset($errors);
+            $classification = is_array($first)
+                && is_array($first['extensions'] ?? null)
+                && is_string($first['extensions']['classification'] ?? null)
+                ? $first['extensions']['classification']
+                : null;
+            throw new GenAiGraphQlException(
                 'POST graphql failed: ' . implode('; ', $messages),
+                $classification,
+                $messages[0],
             );
         }
 

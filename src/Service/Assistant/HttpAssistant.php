@@ -13,7 +13,9 @@ use Atoolo\GenAi\Dto\Assistant\AnswerSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSectionType;
 use Atoolo\GenAi\Dto\Assistant\AnswerSource;
 use Atoolo\GenAi\Dto\Assistant\Question;
+use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
+use Atoolo\GenAi\Exception\GenAiGraphQlException;
 use Atoolo\GenAi\Exception\GenAiRequestException;
 use Atoolo\GenAi\Service\GenAiHttpClient;
 use Atoolo\Resource\ResourceChannel;
@@ -84,9 +86,8 @@ class HttpAssistant implements Assistant
         try {
             $data = $this->client->graphql(self::QUESTION, $variables);
         } catch (GenAiRequestException $e) {
-            throw new AssistantException(
-                'Unable to ask the GenAI application: ' . $e->getMessage(),
-                0,
+            throw $this->toAssistantException(
+                'Unable to ask the GenAI application: ',
                 $e,
             );
         }
@@ -111,15 +112,41 @@ class HttpAssistant implements Assistant
                 'feedback' => $feedback?->value,
             ]);
         } catch (GenAiRequestException $e) {
-            throw new AssistantException(
-                'Unable to give feedback to the GenAI application: '
-                . $e->getMessage(),
-                0,
+            throw $this->toAssistantException(
+                'Unable to give feedback to the GenAI application: ',
                 $e,
             );
         }
 
         return ($data['answerFeedback'] ?? false) === true;
+    }
+
+    /**
+     * Keeps the errors the application hands to the caller - a question it
+     * does not accept, too many questions - with its message; anything else
+     * is an internal error whose message is meant for the log only.
+     */
+    private function toAssistantException(
+        string $prefix,
+        GenAiRequestException $e,
+    ): AssistantException {
+        if ($e instanceof GenAiGraphQlException) {
+            $type = match ($e->classification) {
+                AssistantErrorType::BAD_REQUEST->value
+                    => AssistantErrorType::BAD_REQUEST,
+                AssistantErrorType::TOO_MANY_REQUESTS->value
+                    => AssistantErrorType::TOO_MANY_REQUESTS,
+                default => null,
+            };
+            if ($type !== null) {
+                return new AssistantException($e->reason, $type, $e);
+            }
+        }
+        return new AssistantException(
+            $prefix . $e->getMessage(),
+            AssistantErrorType::INTERNAL_ERROR,
+            $e,
+        );
     }
 
     /**

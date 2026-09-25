@@ -8,6 +8,7 @@ use Atoolo\GenAi\Dto\Assistant\AnswerError;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
 use Atoolo\GenAi\Dto\Assistant\AnswerSectionType;
 use Atoolo\GenAi\Dto\Assistant\Question;
+use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
 use Atoolo\GenAi\Service\Assistant\HttpAssistant;
 use Atoolo\GenAi\Service\GenAiHttpClient;
@@ -16,6 +17,7 @@ use Atoolo\Resource\ResourceChannel;
 use Atoolo\Resource\ResourceLanguage;
 use Atoolo\Resource\ResourceTenant;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -225,6 +227,74 @@ class HttpAssistantTest extends TestCase
         $this->expectException(AssistantException::class);
         $this->expectExceptionMessage('no documents in channel');
         $assistant->ask(new Question('why?'));
+    }
+
+    /**
+     * @return array<string,array{string,AssistantErrorType,string}>
+     */
+    public static function classifiedErrors(): array
+    {
+        return [
+            'bad request' => [
+                'BAD_REQUEST',
+                AssistantErrorType::BAD_REQUEST,
+                'The question is too long',
+            ],
+            'too many requests' => [
+                'TOO_MANY_REQUESTS',
+                AssistantErrorType::TOO_MANY_REQUESTS,
+                'The question is too long',
+            ],
+            'unauthorized' => [
+                'UNAUTHORIZED',
+                AssistantErrorType::INTERNAL_ERROR,
+                'Unable to ask the GenAI application: POST graphql failed: '
+                . 'The question is too long',
+            ],
+        ];
+    }
+
+    #[DataProvider('classifiedErrors')]
+    public function testClassifiedError(
+        string $classification,
+        AssistantErrorType $expectedType,
+        string $expectedMessage,
+    ): void {
+        $assistant = $this->createAssistant(json_encode([
+            'errors' => [[
+                'message' => 'The question is too long',
+                'extensions' => ['classification' => $classification],
+            ]],
+            'data' => null,
+        ], JSON_THROW_ON_ERROR));
+
+        try {
+            $assistant->ask(new Question('why?'));
+            $this->fail('a GraphQL error should throw');
+        } catch (AssistantException $e) {
+            $this->assertEquals(
+                [$expectedType, $expectedMessage],
+                [$e->type, $e->getMessage()],
+                'only the errors meant for the caller should keep their '
+                . 'type and the reason of the application',
+            );
+        }
+    }
+
+    public function testRequestErrorIsAnInternalError(): void
+    {
+        $assistant = $this->createAssistant('{}', 503);
+
+        try {
+            $assistant->feedback('a-1', AnswerFeedback::GOOD);
+            $this->fail('a failed request should throw');
+        } catch (AssistantException $e) {
+            $this->assertEquals(
+                AssistantErrorType::INTERNAL_ERROR,
+                $e->type,
+                'a transport error is an internal error',
+            );
+        }
     }
 
     public function testFeedback(): void

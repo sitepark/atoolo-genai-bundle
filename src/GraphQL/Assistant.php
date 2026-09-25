@@ -8,6 +8,8 @@ use Atoolo\GenAi\Assistant as GenAiAssistant;
 use Atoolo\GenAi\Dto\Assistant\Answer;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
 use Atoolo\GenAi\Dto\Assistant\Question;
+use Atoolo\GenAi\Exception\AssistantErrorType;
+use Atoolo\GenAi\Exception\AssistantException;
 use Atoolo\Resource\ResourceLanguage;
 use Overblog\GraphQLBundle\Annotation as GQL;
 
@@ -16,6 +18,14 @@ use Overblog\GraphQLBundle\Annotation as GQL;
  * giving feedback on the answer - as fields of the atoolo GraphQL schema.
  * The request of the caller is not passed on as it is; the
  * {@see GenAiAssistant} sends fixed operations of its own.
+ *
+ * A failure becomes an {@see AssistantError} with its type in
+ * `extensions.classification`. The GenAI application's reason for a
+ * BAD_REQUEST or TOO_MANY_REQUESTS is meant for the caller and passed on;
+ * such an error is expected and carries no previous exception, which the
+ * error logger of overblog would log. An INTERNAL_ERROR would name the
+ * address of the application: the caller gets a general message, the
+ * original exception is kept as the previous one and so is logged.
  */
 #[GQL\Provider]
 class Assistant
@@ -51,11 +61,15 @@ class Assistant
         ?string $lang = null,
         ?array $categoryIds = null,
     ): Answer {
-        return $this->assistant->ask(new Question(
-            $query,
-            ResourceLanguage::of($lang),
-            $categoryIds ?? [],
-        ));
+        try {
+            return $this->assistant->ask(new Question(
+                $query,
+                ResourceLanguage::of($lang),
+                $categoryIds ?? [],
+            ));
+        } catch (AssistantException $e) {
+            throw $this->toError($e);
+        }
     }
 
     #[GQL\Mutation(name: 'genAiAnswerFeedback', type: 'Boolean!')]
@@ -73,6 +87,22 @@ class Assistant
         string $answerId,
         ?AnswerFeedback $feedback = null,
     ): bool {
-        return $this->assistant->feedback($answerId, $feedback);
+        try {
+            return $this->assistant->feedback($answerId, $feedback);
+        } catch (AssistantException $e) {
+            throw $this->toError($e);
+        }
+    }
+
+    private function toError(AssistantException $e): AssistantError
+    {
+        if ($e->type !== AssistantErrorType::INTERNAL_ERROR) {
+            return new AssistantError($e->getMessage(), $e->type);
+        }
+        return new AssistantError(
+            'The GenAI application is not available',
+            $e->type,
+            $e,
+        );
     }
 }

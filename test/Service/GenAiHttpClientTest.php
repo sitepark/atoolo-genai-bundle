@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Test\Service;
 
+use Atoolo\GenAi\Exception\GenAiGraphQlException;
 use Atoolo\GenAi\Exception\GenAiRequestException;
 use Atoolo\GenAi\Service\GenAiHttpClient;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -232,6 +233,51 @@ class GenAiHttpClientTest extends TestCase
         $this->expectException(GenAiRequestException::class);
         $this->expectExceptionMessage('a; unknown error');
         $client->graphql('{ roles }');
+    }
+
+    public function testGraphQlErrorKeepsClassificationAndReason(): void
+    {
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse(
+                '{"errors":[{"message":"Too many questions",'
+                . '"extensions":{"classification":"TOO_MANY_REQUESTS"}},'
+                . '{"message":"second"}],"data":null}',
+            ),
+            $requests,
+        );
+
+        try {
+            $client->graphql('{ roles }');
+            $this->fail('a GraphQL error should throw');
+        } catch (GenAiGraphQlException $e) {
+            $this->assertEquals(
+                ['TOO_MANY_REQUESTS', 'Too many questions'],
+                [$e->classification, $e->reason],
+                'the classification and message of the first error '
+                . 'should be kept',
+            );
+        }
+    }
+
+    public function testGraphQlErrorWithoutClassification(): void
+    {
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse('{"errors":["no object"]}'),
+            $requests,
+        );
+
+        try {
+            $client->graphql('{ roles }');
+            $this->fail('a GraphQL error should throw');
+        } catch (GenAiGraphQlException $e) {
+            $this->assertEquals(
+                [null, 'unknown error'],
+                [$e->classification, $e->reason],
+                'an error without classification should have none',
+            );
+        }
     }
 
     public function testGraphQlWithoutDataThrows(): void

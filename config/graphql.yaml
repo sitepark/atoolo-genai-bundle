@@ -1,8 +1,4 @@
 overblog_graphql:
-  errors_handler:
-    exceptions:
-      errors:
-        - "Atoolo\\GenAi\\Exception\\AssistantException"
   definitions:
     mappings:
       types:

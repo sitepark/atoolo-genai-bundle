@@ -171,6 +171,23 @@ the caller is never handed on as it is: the client may carry an API key that
 grants far more than the public fields, and the channel is not the caller's
 choice, so `HttpAssistant` sends fixed operations of its own.
 `config/graphql.yaml` is only loaded when the overblog bundle is registered.
+
+**Errors keep their classification.** The application refuses a question
+with a GraphQL error whose `extensions.classification` says why:
+`BAD_REQUEST` (a question over 1000 characters, a language that is no ISO
+639 code, more than 20 categories, a channel without documents, more than
+one question in an operation) or `TOO_MANY_REQUESTS` (the limit per client
+or in total). `GenAiGraphQlException` keeps the classification and message of
+the first error, `HttpAssistant` turns these two into an `AssistantException`
+of that `AssistantErrorType` with the application's message; everything else
+is an `INTERNAL_ERROR`. `GraphQL\AssistantError` is the field error: a
+`UserError` - so overblog neither hides its message nor rethrows it, as the
+graphql-search-bundle sets `rethrow_internal_exceptions` - that provides
+`extensions.classification`, the convention of the atoolo GraphQL API. An
+error for the caller carries no previous exception, because overblog's error
+logger would log it; an `INTERNAL_ERROR` gets a general message, since its
+own names the address of the application, and keeps the cause as previous
+so that it is logged.
 Its fields attach to the attribute-defined `RootQuery`/`RootMutation` of the
 graphql-search-bundle.
 
