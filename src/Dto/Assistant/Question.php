@@ -14,13 +14,15 @@ class Question
     public readonly ResourceLanguage $lang;
 
     /**
-     * @param string[] $categories category ids the answer is limited to
+     * @param ?ResourceLanguage $lang language of the question, the one of
+     *   the channel if not given
+     * @param string[] $categoryIds category ids the retrieved documents are
+     *   restricted to; a parent category also matches its subcategories
      */
     public function __construct(
         public readonly string $text,
         ?ResourceLanguage $lang = null,
-        public readonly ?string $conversationId = null,
-        public readonly array $categories = [],
+        public readonly array $categoryIds = [],
     ) {
         $this->lang = $lang ?? ResourceLanguage::default();
     }

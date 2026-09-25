@@ -7,6 +7,10 @@ namespace Atoolo\GenAi\Test\Console\Command;
 use Atoolo\GenAi\Assistant;
 use Atoolo\GenAi\Console\Command\Ask;
 use Atoolo\GenAi\Dto\Assistant\Answer;
+use Atoolo\GenAi\Dto\Assistant\AnswerError;
+use Atoolo\GenAi\Dto\Assistant\AnswerLink;
+use Atoolo\GenAi\Dto\Assistant\AnswerSection;
+use Atoolo\GenAi\Dto\Assistant\AnswerSectionType;
 use Atoolo\GenAi\Dto\Assistant\AnswerSource;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\Index\Console\Application;
@@ -25,9 +29,26 @@ class AskTest extends TestCase
     public function testExecute(): void
     {
         $tester = $this->createTester(new Answer(
-            'The answer is 42.',
-            [new AnswerSource('123', '/a.php', 'A', 0.75)],
-            'c-1',
+            'a-1',
+            [
+                new AnswerSection(
+                    AnswerSectionType::TEXT,
+                    'Opening hours',
+                    '<p>The office is open on Monday.</p>',
+                    [],
+                    [new AnswerSource('/a.php', 'A')],
+                ),
+                new AnswerSection(
+                    AnswerSectionType::LINKS,
+                    '',
+                    '',
+                    [
+                        new AnswerLink('/b.php', 'B'),
+                        new AnswerLink('/c.php'),
+                    ],
+                ),
+            ],
+            null,
             0.5,
         ));
 
@@ -35,23 +56,70 @@ class AskTest extends TestCase
         $tester->assertCommandIsSuccessful();
 
         $output = $tester->getDisplay();
+        foreach (
+            [
+                'Opening hours',
+                'The office is open on Monday.',
+                '/a.php',
+                'LINKS',
+                'B: /b.php',
+                '/c.php',
+                'answer id: a-1',
+            ] as $expected
+        ) {
+            $this->assertStringContainsString(
+                $expected,
+                $output,
+                'the answer should be printed',
+            );
+        }
+    }
+
+    public function testExecuteWithError(): void
+    {
+        $tester = $this->createTester(new Answer(
+            null,
+            [new AnswerSection(
+                AnswerSectionType::TEXT,
+                '',
+                '<p>Ask more precisely.</p>',
+                [],
+                [],
+                ['When is the office open?'],
+            )],
+            AnswerError::NO_DOCUMENTS,
+        ));
+
+        $tester->execute(['question' => 'why?']);
+        $tester->assertCommandIsSuccessful();
+
+        $output = $tester->getDisplay();
         $this->assertStringContainsString(
-            'The answer is 42.',
+            'NO_DOCUMENTS',
             $output,
-            'the answer should be printed',
+            'the error should be printed',
         );
         $this->assertStringContainsString(
-            '/a.php',
+            'When is the office open?',
             $output,
-            'the sources should be printed',
+            'the suggested questions should be printed',
+        );
+        $this->assertStringNotContainsString(
+            'answer id',
+            $output,
+            'an unstored answer has no id',
         );
     }
 
-    public function testExecuteWithLanguage(): void
+    public function testExecuteWithLanguageAndCategories(): void
     {
-        $tester = $this->createTester(new Answer('42'));
+        $tester = $this->createTester(new Answer());
 
-        $tester->execute(['question' => 'why?', '--lang' => 'en_US']);
+        $tester->execute([
+            'question' => 'why?',
+            '--lang' => 'en_US',
+            '--category' => ['10', '20'],
+        ]);
         $tester->assertCommandIsSuccessful();
 
         $this->assertEquals(
@@ -59,19 +127,10 @@ class AskTest extends TestCase
             $this->askedQuestion?->lang->code,
             'the language option should reach the assistant',
         );
-    }
-
-    public function testExecuteWithoutSources(): void
-    {
-        $tester = $this->createTester(new Answer('42'));
-
-        $tester->execute(['question' => 'why?']);
-        $tester->assertCommandIsSuccessful();
-
-        $this->assertStringNotContainsString(
-            'Sources',
-            $tester->getDisplay(),
-            'without sources no source table should be printed',
+        $this->assertEquals(
+            ['10', '20'],
+            $this->askedQuestion?->categoryIds,
+            'the category options should reach the assistant',
         );
     }
 
@@ -106,23 +165,6 @@ class AskTest extends TestCase
 
         return new CommandTester(
             (new Application([$command]))->find('genai:ask'),
-        );
-    }
-
-    public function testExecuteWithSourceWithoutScore(): void
-    {
-        $tester = $this->createTester(new Answer(
-            '42',
-            [new AnswerSource('123', '/a.php', 'A')],
-        ));
-
-        $tester->execute(['question' => 'why?']);
-        $tester->assertCommandIsSuccessful();
-
-        $this->assertStringContainsString(
-            '/a.php',
-            $tester->getDisplay(),
-            'a source without a score should still be listed',
         );
     }
 }

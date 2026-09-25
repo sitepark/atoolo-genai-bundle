@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atoolo\GenAi\Console\Command;
 
 use Atoolo\GenAi\Assistant;
+use Atoolo\GenAi\Dto\Assistant\AnswerSection;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\Index\Console\Command\Io\TypifiedInput;
 use Atoolo\Resource\ResourceChannel;
@@ -46,6 +47,13 @@ class Ask extends Command
                 'Language of the question, e.g. en',
                 '',
             )
+            ->addOption(
+                'category',
+                null,
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'Category id the retrieved documents are restricted to, '
+                . 'may be given several times',
+            )
         ;
     }
 
@@ -58,32 +66,67 @@ class Ask extends Command
         $io = new SymfonyStyle($input, $output);
         $io->title('Channel: ' . $this->channel->name);
 
+        /** @var string[] $categoryIds */
+        $categoryIds = $input->getOption('category');
+
         $answer = $this->assistant->ask(new Question(
             $typedInput->getStringArgument('question'),
             ResourceLanguage::of($typedInput->getStringOption('lang')),
+            $categoryIds,
         ));
 
-        $io->section('Answer');
-        $io->text($answer->text);
-
-        if (!empty($answer->sources)) {
-            $io->section('Sources');
-            $rows = [];
-            foreach ($answer->sources as $source) {
-                $rows[] = [
-                    $source->id,
-                    $source->title,
-                    $source->url,
-                    $source->score === null
-                        ? ''
-                        : number_format($source->score, 3),
-                ];
-            }
-            $io->table(['id', 'title', 'url', 'score'], $rows);
+        if ($answer->error !== null) {
+            $io->warning('Not answered: ' . $answer->error->name);
         }
 
+        foreach ($answer->sections as $section) {
+            $this->printSection($io, $section);
+        }
+
+        if ($answer->id !== null) {
+            $io->text('answer id: ' . $answer->id);
+        }
         $io->text(sprintf('time: %.3fs', $answer->duration));
 
         return Command::SUCCESS;
+    }
+
+    private function printSection(
+        SymfonyStyle $io,
+        AnswerSection $section,
+    ): void {
+        $io->section(
+            $section->headline !== ''
+                ? $section->headline
+                : $section->type->name,
+        );
+
+        if ($section->html !== '') {
+            $io->text(trim(strip_tags($section->html)));
+        }
+
+        if (!empty($section->links)) {
+            $io->listing(array_map(
+                static fn($link) => $link->label !== ''
+                    ? $link->label . ': ' . $link->url
+                    : $link->url,
+                $section->links,
+            ));
+        }
+
+        if (!empty($section->questions)) {
+            $io->text('Did you mean:');
+            $io->listing($section->questions);
+        }
+
+        if (!empty($section->sources)) {
+            $io->table(
+                ['title', 'url'],
+                array_map(
+                    static fn($source) => [$source->title, $source->url],
+                    $section->sources,
+                ),
+            );
+        }
     }
 }

@@ -84,6 +84,48 @@ class GenAiHttpClient
     }
 
     /**
+     * Sends a GraphQL operation to `/graphql` and returns its `data`.
+     *
+     * GraphQL reports a failed operation with status 200 and a list of
+     * `errors`, which would otherwise go unnoticed; it becomes a
+     * {@see GenAiRequestException} like every other failure.
+     *
+     * @param array<string,mixed> $variables
+     * @return array<string,mixed>
+     * @throws GenAiRequestException
+     */
+    public function graphql(string $query, array $variables = []): array
+    {
+        $payload = ['query' => $query];
+        if (!empty($variables)) {
+            $payload['variables'] = $variables;
+        }
+
+        $response = $this->request('POST', 'graphql', $payload);
+
+        $errors = $response['errors'] ?? null;
+        if (is_array($errors) && !empty($errors)) {
+            $messages = [];
+            foreach ($errors as $error) {
+                $messages[] = is_array($error)
+                    && is_string($error['message'] ?? null)
+                    ? $error['message']
+                    : 'unknown error';
+            }
+            throw new GenAiRequestException(
+                'POST graphql failed: ' . implode('; ', $messages),
+            );
+        }
+
+        $data = $response['data'] ?? null;
+        if (!is_array($data)) {
+            throw new GenAiRequestException('POST graphql returned no data');
+        }
+        /** @var array<string,mixed> $data */
+        return $data;
+    }
+
+    /**
      * @return array<string,string>
      */
     private function headers(): array

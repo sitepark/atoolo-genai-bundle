@@ -177,6 +177,70 @@ class GenAiHttpClientTest extends TestCase
     /**
      * @param array<int,array{method:string,url:string,body:string,headers:string[]}> $requests
      */
+    public function testGraphQlSendsQueryAndVariables(): void
+    {
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse('{"data":{"roles":[]}}'),
+            $requests,
+        );
+
+        $data = $client->graphql('query($a: Int) { roles }', ['a' => 1]);
+
+        $this->assertEquals(
+            'https://genai.example.com/graphql',
+            $requests[0]['url'],
+            'unexpected url',
+        );
+        $this->assertEquals(
+            '{"query":"query($a: Int) { roles }","variables":{"a":1}}',
+            $requests[0]['body'],
+            'unexpected request body',
+        );
+        $this->assertEquals(['roles' => []], $data, 'unexpected data');
+    }
+
+    public function testGraphQlWithoutVariables(): void
+    {
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse('{"data":{"roles":[]}}'),
+            $requests,
+        );
+
+        $client->graphql('{ roles }');
+
+        $this->assertEquals(
+            '{"query":"{ roles }"}',
+            $requests[0]['body'],
+            'without variables none should be sent',
+        );
+    }
+
+    public function testGraphQlErrorsThrow(): void
+    {
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse(
+                '{"errors":[{"message":"a"},{"no":"message"}],"data":null}',
+            ),
+            $requests,
+        );
+
+        $this->expectException(GenAiRequestException::class);
+        $this->expectExceptionMessage('a; unknown error');
+        $client->graphql('{ roles }');
+    }
+
+    public function testGraphQlWithoutDataThrows(): void
+    {
+        $requests = [];
+        $client = $this->createClient(new MockResponse('{}'), $requests);
+
+        $this->expectException(GenAiRequestException::class);
+        $client->graphql('{ roles }');
+    }
+
     private function createClient(
         MockResponse $response,
         array &$requests,

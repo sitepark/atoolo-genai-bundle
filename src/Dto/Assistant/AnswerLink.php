@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Atoolo\GenAi\Dto\Assistant;
 
 /**
- * A document the content of an answer section comes from.
- *
  * @codeCoverageIgnore
  */
-class AnswerSource
+class AnswerLink
 {
+    /**
+     * @param string $label the text to link with, empty if the source
+     *   offers none
+     */
     public function __construct(
         public readonly string $url,
-        public readonly string $title = '',
+        public readonly string $label = '',
     ) {}
 }
