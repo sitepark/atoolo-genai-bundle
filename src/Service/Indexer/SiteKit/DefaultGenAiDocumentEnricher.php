@@ -508,7 +508,8 @@ class DefaultGenAiDocumentEnricher implements
 
     /**
      * SiteKit keeps the number in a readable form next to its parts, so the
-     * parts are only assembled when it does not.
+     * parts are only assembled when it does not. The readable form already
+     * ends with the extension.
      *
      * @param Phone $phone
      */
@@ -517,7 +518,7 @@ class DefaultGenAiDocumentEnricher implements
         foreach (['nationalNumber', 'internationalNumber'] as $name) {
             $number = trim($phone[$name] ?? '');
             if ($number !== '') {
-                return $this->withExtension($number, $phone);
+                return $number;
             }
         }
 

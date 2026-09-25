@@ -805,6 +805,36 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testReadablePhoneNumberKeepsItsExtension(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => [
+                'contactPoint' => [
+                    'contactData' => [
+                        'phoneList' => [
+                            [
+                                'phone' => [
+                                    'nationalNumber' => '0711 216-93710',
+                                    'areaCode' => '711',
+                                    'localNumber' => '216',
+                                    'extension' => '93710',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $section = $doc->content[0];
+        $this->assertInstanceOf(TextSection::class, $section);
+        $this->assertEquals(
+            '<ul><li>Telefon: 0711 216-93710</li></ul>',
+            $section->html,
+            'the extension should not be appended twice',
+        );
+    }
+
     public function testContactTextIsEscaped(): void
     {
         $doc = $this->enrichWithData([
