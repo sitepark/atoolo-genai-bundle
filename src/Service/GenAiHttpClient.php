@@ -7,6 +7,7 @@ namespace Atoolo\GenAi\Service;
 use Atoolo\GenAi\Exception\GenAiRequestException;
 use JsonException;
 use Symfony\Component\HttpClient\Exception\JsonException as HttpJsonException;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -19,6 +20,12 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * the indexing API under `/api`, its health under `/actuator/health` and
  * answers questions under `/graphql`, so a common prefix would only be in the
  * way; the caller names the full path.
+ *
+ * A GraphQL operation is sent on behalf of the user of the current request,
+ * so it carries the client ip in `X-Forwarded-For`, which lets the
+ * application limit requests per ip. Only the ip Symfony resolved is sent,
+ * honouring the trusted proxies; a chain the caller sent along could be
+ * forged and is not passed on.
  */
 class GenAiHttpClient
 {
@@ -26,10 +33,12 @@ class GenAiHttpClient
         private readonly HttpClientInterface $httpClient,
         private readonly string $baseUrl,
         private readonly string $apiKey = '',
+        private readonly ?RequestStack $requestStack = null,
     ) {}
 
     /**
      * @param array<string,mixed>|list<mixed>|null $json
+     * @param array<string,string> $headers
      * @return array<string,mixed>
      * @throws GenAiRequestException
      */
@@ -37,10 +46,11 @@ class GenAiHttpClient
         string $method,
         string $path,
         ?array $json = null,
+        array $headers = [],
     ): array {
         $url = rtrim($this->baseUrl, '/') . '/' . ltrim($path, '/');
 
-        $options = ['headers' => $this->headers()];
+        $options = ['headers' => array_merge($this->headers(), $headers)];
         if ($json !== null) {
             $options['json'] = $json;
         }
@@ -101,7 +111,13 @@ class GenAiHttpClient
             $payload['variables'] = $variables;
         }
 
-        $response = $this->request('POST', 'graphql', $payload);
+        $headers = [];
+        $clientIp = $this->requestStack?->getMainRequest()?->getClientIp();
+        if ($clientIp !== null) {
+            $headers['X-Forwarded-For'] = $clientIp;
+        }
+
+        $response = $this->request('POST', 'graphql', $payload, $headers);
 
         $errors = $response['errors'] ?? null;
         if (is_array($errors) && !empty($errors)) {

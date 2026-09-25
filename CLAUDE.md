@@ -142,7 +142,12 @@ The contract is the one the application actually serves; `/v3/api-docs` of a
 running instance is its OpenAPI description, `/graphql` answers an
 introspection. `GenAiHttpClient::graphql()` sends an operation and returns its
 `data`; the `errors` GraphQL reports with status 200 become a
-`GenAiRequestException` as well.
+`GenAiRequestException` as well. A GraphQL operation carries the client ip of
+the current request in `X-Forwarded-For`, so the application can limit
+requests per ip: only `Request::getClientIp()`, which honours the trusted
+proxies, never the chain the caller sent along, which could be forged. Without
+a request - on the console - the header is left out; the REST calls of the
+indexer never carry it.
 
 ### Assistant (`src/Assistant.php`, `src/Service/Assistant/`)
 

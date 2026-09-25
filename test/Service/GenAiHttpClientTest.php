@@ -11,6 +11,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 #[CoversClass(GenAiHttpClient::class)]
 class GenAiHttpClientTest extends TestCase
@@ -241,10 +243,82 @@ class GenAiHttpClientTest extends TestCase
         $client->graphql('{ roles }');
     }
 
+    public function testGraphQlSendsClientIpAsForwardedFor(): void
+    {
+        $requestStack = new RequestStack();
+        $requestStack->push(Request::create(
+            '/api/graphql',
+            'POST',
+            server: [
+                'REMOTE_ADDR' => '203.0.113.7',
+                'HTTP_X_FORWARDED_FOR' => '198.51.100.1',
+            ],
+        ));
+
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse('{"data":{"roles":[]}}'),
+            $requests,
+            '',
+            $requestStack,
+        );
+
+        $client->graphql('{ roles }');
+
+        $this->assertContains(
+            'X-Forwarded-For: 203.0.113.7',
+            $requests[0]['headers'],
+            'the client ip should be sent, not a chain an untrusted '
+            . 'caller sent along',
+        );
+    }
+
+    public function testGraphQlWithoutRequestSendsNoForwardedFor(): void
+    {
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse('{"data":{"roles":[]}}'),
+            $requests,
+            '',
+            new RequestStack(),
+        );
+
+        $client->graphql('{ roles }');
+
+        $this->assertEmpty(
+            preg_grep('/^X-Forwarded-For:/i', $requests[0]['headers']),
+            'without a request, e.g. on the console, no ip can be sent',
+        );
+    }
+
+    public function testRequestSendsNoForwardedFor(): void
+    {
+        $requestStack = new RequestStack();
+        $requestStack->push(Request::create('/', server: [
+            'REMOTE_ADDR' => '203.0.113.7',
+        ]));
+
+        $requests = [];
+        $client = $this->createClient(
+            new MockResponse('{}'),
+            $requests,
+            '',
+            $requestStack,
+        );
+
+        $client->request('POST', 'api/index/purge', []);
+
+        $this->assertEmpty(
+            preg_grep('/^X-Forwarded-For:/i', $requests[0]['headers']),
+            'only GraphQL operations are sent on behalf of a user',
+        );
+    }
+
     private function createClient(
         MockResponse $response,
         array &$requests,
         string $apiKey = '',
+        ?RequestStack $requestStack = null,
     ): GenAiHttpClient {
         $httpClient = new MockHttpClient(
             static function (
@@ -266,6 +340,7 @@ class GenAiHttpClientTest extends TestCase
             $httpClient,
             'https://genai.example.com/',
             $apiKey,
+            $requestStack,
         );
     }
 

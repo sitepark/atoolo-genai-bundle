@@ -37,6 +37,7 @@ services:
       - '@atoolo_genai.http_client'
       - '%atoolo_genai.connection.url%'
       - '%atoolo_genai.connection.api_key%'
+      - '@?request_stack'
 
   atoolo_genai.assistant:
     class: Atoolo\GenAi\Service\Assistant\HttpAssistant
