@@ -71,7 +71,9 @@ assistant.
   converts that markup block by block and chunks along it. The contact point
   is not part of that tree but answers the questions people ask most, so it
   becomes a section of its own - its facts in one list, which the application
-  treats as a single block and therefore never tears apart. Plain text of the
+  treats as a single block and therefore never tears apart. The opening
+  hours of the contact point are a section of their own, one list of days
+  per week block, followed by the editor's additional text. Plain text of the
   CMS is escaped on its way into the HTML. An article carries `kicker` and
   `intro` next to its `headline`: the kicker is the one of the teaser or the
   resource, otherwise inherited from the nearest navigation ancestor that has

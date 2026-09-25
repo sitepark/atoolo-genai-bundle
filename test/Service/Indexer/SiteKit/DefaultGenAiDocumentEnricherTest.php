@@ -835,6 +835,108 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testOpeningHoursBecomeASection(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => [
+                'contactPoint' => [
+                    'openingHours' => [
+                        'weekBlockList' => [
+                            [
+                                'headline' => null,
+                                'weekSeriesList' => [
+                                    [
+                                        'dayOfWeekList' => ['MONDAY'],
+                                        'timeRangeList' => [
+                                            ['start' => '08:30', 'end' => '12:00'],
+                                            ['start' => '14:00', 'end' => '16:00'],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                            [
+                                'weekSeriesList' => [
+                                    [
+                                        'dayOfWeekList' => ['TUESDAY', 'FRIDAY'],
+                                        'timeRangeList' => [
+                                            ['start' => '08:30', 'end' => '13:00'],
+                                        ],
+                                        'notice' => 'nur mit Termin',
+                                    ],
+                                ],
+                            ],
+                            [
+                                'headline' => 'Sommer & Ferien',
+                                'notice' => 'Juli bis August',
+                                'weekSeriesList' => [
+                                    [
+                                        'dayOfWeekList' => ['SATURDAY'],
+                                        'timeRangeList' => [
+                                            ['start' => '10:00', 'end' => '12:00'],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'additionalText' => [
+                            'text' => '<p>Aktuelle <strong>Wartezeiten</strong></p>',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $doc->content, 'the opening hours should be a section');
+        $section = $doc->content[0];
+        $this->assertInstanceOf(TextSection::class, $section);
+        $this->assertEquals(
+            'Öffnungszeiten',
+            $section->headline,
+            'unexpected headline',
+        );
+        $this->assertEquals(
+            '<ul>'
+            . '<li>Montag: 08:30 - 12:00 Uhr und 14:00 - 16:00 Uhr</li>'
+            . '<li>Dienstag: 08:30 - 13:00 Uhr (nur mit Termin)</li>'
+            . '<li>Freitag: 08:30 - 13:00 Uhr (nur mit Termin)</li>'
+            . '</ul>'
+            . '<p>Sommer &amp; Ferien</p>'
+            . '<ul><li>Samstag: 10:00 - 12:00 Uhr</li></ul>'
+            . '<p>Juli bis August</p>'
+            . '<p>Aktuelle <strong>Wartezeiten</strong></p>',
+            $section->html,
+            'a block without headline and notice should continue the one before',
+        );
+    }
+
+    public function testEmptyOpeningHoursAreSkipped(): void
+    {
+        $doc = $this->enrichWithData([
+            'metadata' => [
+                'contactPoint' => [
+                    'openingHours' => [
+                        'weekBlockList' => [
+                            [
+                                'weekSeriesList' => [
+                                    [
+                                        'dayOfWeekList' => ['MONDAY'],
+                                        'timeRangeList' => [],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'additionalText' => null,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertEmpty(
+            $doc->content,
+            'opening hours without times should not become a section',
+        );
+    }
+
     public function testContactTextIsEscaped(): void
     {
         $doc = $this->enrichWithData([

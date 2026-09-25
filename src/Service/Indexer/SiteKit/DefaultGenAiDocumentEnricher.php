@@ -59,10 +59,26 @@ use Psr\Log\LoggerAwareTrait;
  *     publicTransportationNotice?:string,
  *     accessibleDescription?:string
  * }
+ * @phpstan-type TimeRange array{start?:?string, end?:?string}
+ * @phpstan-type WeekSeries array{
+ *     dayOfWeekList?:array<string>,
+ *     timeRangeList?:array<TimeRange>,
+ *     notice?:?string
+ * }
+ * @phpstan-type WeekBlock array{
+ *     headline?:?string,
+ *     notice?:?string,
+ *     weekSeriesList?:array<WeekSeries>
+ * }
+ * @phpstan-type OpeningHours array{
+ *     weekBlockList?:array<WeekBlock>,
+ *     additionalText?:?array{text?:?string}
+ * }
  * @phpstan-type ContactPoint array{
  *     headline?:string,
  *     contactData?:ContactData,
- *     addressData?:AddressData
+ *     addressData?:AddressData,
+ *     openingHours?:OpeningHours
  * }
  * @implements DocumentEnricher<GenAiDocument>
  */
@@ -71,6 +87,16 @@ class DefaultGenAiDocumentEnricher implements
     LoggerAwareInterface
 {
     use LoggerAwareTrait;
+
+    private const WEEKDAYS = [
+        'MONDAY' => 'Montag',
+        'TUESDAY' => 'Dienstag',
+        'WEDNESDAY' => 'Mittwoch',
+        'THURSDAY' => 'Donnerstag',
+        'FRIDAY' => 'Freitag',
+        'SATURDAY' => 'Samstag',
+        'SUNDAY' => 'Sonntag',
+    ];
 
     /** @var array<string,string> */
     private array $categoryTitleCache = [];
@@ -254,6 +280,12 @@ class DefaultGenAiDocumentEnricher implements
         $contact = $this->toContactSection($contactPoint);
         if ($contact !== null) {
             $sections[] = $contact;
+        }
+        $openingHours = $this->toOpeningHoursSection(
+            $contactPoint['openingHours'] ?? [],
+        );
+        if ($openingHours !== null) {
+            $sections[] = $openingHours;
         }
 
         $document->content = $sections;
@@ -504,6 +536,113 @@ class DefaultGenAiDocumentEnricher implements
             $headline !== '' ? $headline : 'Kontakt',
             $html,
         );
+    }
+
+    /**
+     * The opening hours are a section of their own. Every week block becomes
+     * one list of days, so the application never tears a week apart. A block
+     * without headline and notice only continues the one before, as the
+     * website shows it. The additional text is the editor's HTML.
+     *
+     * @param OpeningHours $openingHours
+     */
+    private function toOpeningHoursSection(array $openingHours): ?TextSection
+    {
+        $html = '';
+        $weekBlocks = $this->mergeWeekBlocks(
+            $openingHours['weekBlockList'] ?? [],
+        );
+        foreach ($weekBlocks as $weekBlock) {
+            $days = [];
+            foreach ($weekBlock['weekSeriesList'] ?? [] as $weekSeries) {
+                $days = array_merge($days, $this->weekDays($weekSeries));
+            }
+            if (empty($days)) {
+                continue;
+            }
+
+            $headline = trim($weekBlock['headline'] ?? '');
+            if ($headline !== '') {
+                $html .= '<p>' . $this->escape($headline) . '</p>';
+            }
+            $html .= '<ul>';
+            foreach ($days as $day) {
+                $html .= '<li>' . $this->escape($day) . '</li>';
+            }
+            $html .= '</ul>';
+            $notice = trim($weekBlock['notice'] ?? '');
+            if ($notice !== '') {
+                $html .= '<p>' . $this->escape($notice) . '</p>';
+            }
+        }
+
+        $html .= trim($openingHours['additionalText']['text'] ?? '');
+
+        return $html === ''
+            ? null
+            : new TextSection('Öffnungszeiten', $html);
+    }
+
+    /**
+     * @param array<WeekBlock> $weekBlockList
+     * @return array<WeekBlock>
+     */
+    private function mergeWeekBlocks(array $weekBlockList): array
+    {
+        $merged = [];
+        foreach ($weekBlockList as $weekBlock) {
+            $last = array_key_last($merged);
+            if (
+                $last !== null
+                && trim($weekBlock['headline'] ?? '') === ''
+                && trim($weekBlock['notice'] ?? '') === ''
+            ) {
+                $merged[$last]['weekSeriesList'] = array_merge(
+                    $merged[$last]['weekSeriesList'] ?? [],
+                    $weekBlock['weekSeriesList'] ?? [],
+                );
+                continue;
+            }
+            $merged[] = $weekBlock;
+        }
+        return $merged;
+    }
+
+    /**
+     * @param WeekSeries $weekSeries
+     * @return string[]
+     */
+    private function weekDays(array $weekSeries): array
+    {
+        $ranges = [];
+        foreach ($weekSeries['timeRangeList'] ?? [] as $timeRange) {
+            $start = trim($timeRange['start'] ?? '');
+            $end = trim($timeRange['end'] ?? '');
+            if ($start !== '' && $end !== '') {
+                $ranges[] = $start . ' - ' . $end . ' Uhr';
+            } elseif ($start !== '' || $end !== '') {
+                $ranges[] = ($start !== '' ? 'ab ' . $start : 'bis ' . $end)
+                    . ' Uhr';
+            }
+        }
+        $notice = trim($weekSeries['notice'] ?? '');
+        if (empty($ranges) && $notice === '') {
+            return [];
+        }
+
+        $text = implode(' und ', $ranges);
+        if ($notice !== '') {
+            $text = $text === '' ? $notice : $text . ' (' . $notice . ')';
+        }
+
+        $days = [];
+        foreach ($weekSeries['dayOfWeekList'] ?? [] as $dayOfWeek) {
+            $day = self::WEEKDAYS[strtoupper($dayOfWeek)] ?? null;
+            if ($day !== null) {
+                $days[] = $day . ': ' . $text;
+            }
+        }
+        return $days;
     }
 
     /**
