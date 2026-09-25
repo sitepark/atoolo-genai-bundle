@@ -121,9 +121,50 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
 
     public function testEnrichWithoutDate(): void
     {
-        $doc = $this->enrichWithData([]);
+        $doc = $this->enrichWithResource($this->createResource([
+            'objectType' => 'news',
+        ]));
 
         $this->assertNull($doc->date, 'without a date none should be set');
+    }
+
+    public function testTheDateOfAnUndatedTypeIsLeftOut(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'objectType' => 'citygovProduct',
+            'base' => ['date' => 1707549836],
+        ]));
+
+        $this->assertNull(
+            $doc->date,
+            'the date of a type whose age says nothing should be left out',
+        );
+    }
+
+    public function testConfiguredTypesAreDated(): void
+    {
+        $enricher = new DefaultGenAiDocumentEnricher(
+            $this->navigationLoader,
+            $this->createResourceChannel(),
+            'internal',
+            ['eventsCalendar-event'],
+        );
+
+        /** @var GenAiDocument $doc */
+        $doc = $enricher->enrichDocument(
+            $this->createResource([
+                'objectType' => 'eventsCalendar-event',
+                'base' => ['date' => 1707549836],
+            ]),
+            new GenAiDocument(),
+            'progress-id',
+        );
+
+        $this->assertEquals(
+            '2024-02-10',
+            $doc->date?->format('Y-m-d'),
+            'a configured type should keep its date',
+        );
     }
 
     public function testMediaUrlWins(): void

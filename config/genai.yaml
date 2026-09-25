@@ -13,6 +13,10 @@ parameters:
   atoolo_genai.connection.url: '%atoolo_genai.connection.scheme%://%atoolo_genai.connection.host%:%atoolo_genai.connection.port%%atoolo_genai.connection.path%'
   atoolo_genai.connection.api_key: '%env(default:atoolo_genai.connection.api_key.default:GENAI_API_KEY)%'
   atoolo_genai.connection.idle_timeout: '%env(default:atoolo_genai.connection.idle_timeout.default:GENAI_IDLE_TIMEOUT)%'
+  # the object types whose date is relevant, comma separated; the other
+  # documents are sent without a date, so that their age does not matter
+  atoolo_genai.indexer.dated_object_types.default: 'news'
+  atoolo_genai.indexer.dated_object_types: '%env(csv:default:atoolo_genai.indexer.dated_object_types.default:GENAI_DATED_OBJECT_TYPES)%'
 
 services:
 

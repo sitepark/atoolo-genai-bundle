@@ -101,10 +101,16 @@ class DefaultGenAiDocumentEnricher implements
     /** @var array<string,string> */
     private array $categoryTitleCache = [];
 
+    /**
+     * @param list<string> $datedObjectTypes the object types whose date is
+     *     relevant, e.g. news; the other resources are sent without a date,
+     *     so that their age does not lower their rank
+     */
     public function __construct(
         private readonly SiteKitNavigationHierarchyLoader $navigationLoader,
         private readonly ResourceChannel $resourceChannel,
         private readonly string $source = 'internal',
+        private readonly array $datedObjectTypes = ['news'],
     ) {}
 
     public function cleanup(): void
@@ -153,7 +159,9 @@ class DefaultGenAiDocumentEnricher implements
         $document->url = $this->toAbsoluteUrl(
             $data->getString('mediaUrl') ?: $data->getString('url'),
         );
-        $document->date = $this->toDateTime($base->getInt('date'));
+        if (in_array($resource->objectType, $this->datedObjectTypes, true)) {
+            $document->date = $this->toDateTime($base->getInt('date'));
+        }
 
         $this->enrichKeywords($resource, $document);
     }

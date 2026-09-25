@@ -21,6 +21,7 @@ services:
       - '@atoolo_resource.navigation_hierarchy_loader'
       - '@atoolo_resource.resource_channel'
       - 'internal'
+      - '%atoolo_genai.indexer.dated_object_types%'
     tags:
       - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }
 
