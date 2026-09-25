@@ -183,15 +183,25 @@ class ContainerTest extends TestCase
         );
     }
 
-    public function testTimeoutFromTheEnvironment(): void
+    public function testIdleTimeoutDefault(): void
+    {
+        $this->assertEquals(
+            '300',
+            $this->resolveParameter([], 'atoolo_genai.connection.idle_timeout'),
+            'the idle timeout should leave the application time to embed '
+            . 'a whole bulk',
+        );
+    }
+
+    public function testIdleTimeoutFromTheEnvironment(): void
     {
         $this->assertEquals(
             '60',
             $this->resolveParameter(
-                ['GENAI_TIMEOUT' => '60'],
-                'atoolo_genai.connection.timeout',
+                ['GENAI_IDLE_TIMEOUT' => '60'],
+                'atoolo_genai.connection.idle_timeout',
             ),
-            'the timeout should be configurable through the environment',
+            'the idle timeout should be configurable through the environment',
         );
     }
 
@@ -217,7 +227,7 @@ class ContainerTest extends TestCase
                 'GENAI_PORT',
                 'GENAI_PATH',
                 'GENAI_API_KEY',
-                'GENAI_TIMEOUT',
+                'GENAI_IDLE_TIMEOUT',
             ] as $variable
         ) {
             unset($_SERVER[$variable]);

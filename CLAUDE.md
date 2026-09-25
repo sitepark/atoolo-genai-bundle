@@ -158,9 +158,14 @@ connection, so that each one can be set on its own:
 | `GENAI_PORT` | `8080` |
 | `GENAI_PATH` | *(empty)* |
 | `GENAI_API_KEY` | *(empty, no key is sent)* |
-| `GENAI_TIMEOUT` | `30` |
+| `GENAI_IDLE_TIMEOUT` | `300` |
 
 Without any of them the bundle talks to `http://localhost:8080`.
+`GENAI_IDLE_TIMEOUT` is the seconds the client waits for the next byte of an
+answer - the `timeout` of the Symfony http client, not the duration of a
+request. The application answers a bulk only once it has embedded every
+changed document of the chunk and sends nothing before, so the default is
+generous.
 `Service\EnvVarLoader` takes a `GENAI_URL` apart into scheme, host, port and
 path, so an environment that knows the application as one address can set
 that instead - the same way `SOLR_URL` works in the search-bundle.

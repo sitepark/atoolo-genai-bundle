@@ -4,14 +4,15 @@ parameters:
   atoolo_genai.connection.port.default: '8080'
   atoolo_genai.connection.path.default: ''
   atoolo_genai.connection.api_key.default: ''
-  atoolo_genai.connection.timeout.default: 30
+  # the application answers a bulk only once it has embedded every document
+  atoolo_genai.connection.idle_timeout.default: 300
   atoolo_genai.connection.scheme: '%env(default:atoolo_genai.connection.scheme.default:GENAI_SCHEME)%'
   atoolo_genai.connection.host: '%env(default:atoolo_genai.connection.host.default:GENAI_HOST)%'
   atoolo_genai.connection.port: '%env(default:atoolo_genai.connection.port.default:GENAI_PORT)%'
   atoolo_genai.connection.path: '%env(default:atoolo_genai.connection.path.default:GENAI_PATH)%'
   atoolo_genai.connection.url: '%atoolo_genai.connection.scheme%://%atoolo_genai.connection.host%:%atoolo_genai.connection.port%%atoolo_genai.connection.path%'
   atoolo_genai.connection.api_key: '%env(default:atoolo_genai.connection.api_key.default:GENAI_API_KEY)%'
-  atoolo_genai.connection.timeout: '%env(default:atoolo_genai.connection.timeout.default:GENAI_TIMEOUT)%'
+  atoolo_genai.connection.idle_timeout: '%env(default:atoolo_genai.connection.idle_timeout.default:GENAI_IDLE_TIMEOUT)%'
 
 services:
 
@@ -27,7 +28,8 @@ services:
     class: Symfony\Contracts\HttpClient\HttpClientInterface
     factory: ['Symfony\Component\HttpClient\HttpClient', 'create']
     arguments:
-      - { timeout: '%atoolo_genai.connection.timeout%' }
+      # symfony's timeout is the idle timeout, not the total duration
+      - { timeout: '%atoolo_genai.connection.idle_timeout%' }
 
   atoolo_genai.client:
     class: Atoolo\GenAi\Service\GenAiHttpClient
