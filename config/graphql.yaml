@@ -1,0 +1,14 @@
+overblog_graphql:
+  errors_handler:
+    exceptions:
+      errors:
+        - "Atoolo\\GenAi\\Exception\\AssistantException"
+  definitions:
+    mappings:
+      types:
+        - type: attribute
+          dir: "%atoolo_genai.src_dir%/GraphQL"
+          suffix: ~
+        - types: [yaml]
+          dir: "%atoolo_genai.config_dir%/graphql/types"
+          suffix: ~

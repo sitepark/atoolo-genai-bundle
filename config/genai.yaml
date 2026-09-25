@@ -46,3 +46,8 @@ services:
 
   Atoolo\GenAi\Assistant:
     alias: atoolo_genai.assistant
+
+  Atoolo\GenAi\GraphQL\Assistant:
+    public: true
+    arguments:
+      - '@atoolo_genai.assistant'

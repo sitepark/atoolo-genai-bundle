@@ -1,0 +1,4 @@
+GenAiAnswerFeedback:
+  type: enum
+  config:
+    enumClass: Atoolo\GenAi\Dto\Assistant\AnswerFeedback

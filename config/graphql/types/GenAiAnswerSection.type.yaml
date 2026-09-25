@@ -1,0 +1,17 @@
+GenAiAnswerSection:
+  type: object
+  config:
+    description: "One part of an answer. A TEXT section carries its content in html, a LINKS section in links; the field that does not apply is empty."
+    fields:
+      type: { type: "GenAiAnswerSectionType!" }
+      headline: { type: "String!" }
+      html:
+        type: "String!"
+        description: "Rich text of a TEXT section as HTML, empty for LINKS."
+      links: { type: "[GenAiAnswerLink!]!" }
+      sources:
+        type: "[GenAiAnswerSource!]!"
+        description: "The resources the content comes from, empty if it comes from none in particular."
+      questions:
+        type: "[String!]!"
+        description: "Questions the user probably meant, to be offered for asking with one click. Only given with the hints of an answer with error."

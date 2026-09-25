@@ -128,7 +128,8 @@ transport detail leaks upwards.
 | bulk update | `POST /api/index/documents`, body is a bare list of documents, answers `{documents, chunks, unchanged}` |
 | delete by id | `POST /api/index/documents/delete` `{channel, source, ids}` |
 | purge by process id | `POST /api/index/purge` `{channel, source, keepProcessId}` |
-| ask | GraphQL `POST /graphql`, query `question(systemPrompt!, userPrompt!, query!, language!, categoryIds)` |
+| ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds)` |
+| feedback | GraphQL `POST /graphql`, mutation `answerFeedback(answerId!, feedback)` |
 
 There is no commit; documents are searchable as soon as the bulk request
 returns. A document requires its `channel` - at most 64 letters, digits,
@@ -139,14 +140,36 @@ application compares it, it is ignored and every document is embedded.
 
 The contract is the one the application actually serves; `/v3/api-docs` of a
 running instance is its OpenAPI description, `/graphql` answers an
-introspection. **The assistant does not speak it yet** - it still sends the
-REST call this bundle invented before the application existed, and is to be
-moved to GraphQL in a step of its own.
+introspection. `GenAiHttpClient::graphql()` sends an operation and returns its
+`data`; the `errors` GraphQL reports with status 200 become a
+`GenAiRequestException` as well.
 
 ### Assistant (`src/Assistant.php`, `src/Service/Assistant/`)
 
-`Assistant::ask(Question): Answer`, implemented by `HttpAssistant`, reachable
-from the console via `genai:ask <question> [--lang]`.
+`Assistant::ask(Question): Answer` and `Assistant::feedback(answerId,
+feedback): bool`, implemented by `HttpAssistant`. The answer is structured as
+the application delivers it: an `id` to give feedback with, `sections` - TEXT
+with `html`, LINKS with `links`, each with its `sources` - and an `error` when
+the documents did not answer the question, whose sections are then the hints
+how to ask more precisely. The DTOs and enums in `Dto\Assistant\` mirror the
+public types of the application one to one. The channel is the `searchIndex`
+of the `ResourceChannel`; a question without a language is asked in the one
+of the channel, because the application requires it. Reading the feedback
+back is not public in the application, so it is not offered; a frontend keeps
+what it has set.
+
+**Through GraphQL, not passed through.** `GraphQL\Assistant` adds
+`genAiQuestion(query!, lang, categoryIds): GenAiAnswer!` and the mutation
+`genAiAnswerFeedback(answerId!, feedback): Boolean!` to the atoolo schema; the
+types are in `config/graphql/types`, prefixed with `GenAi`. The request of
+the caller is never handed on as it is: the client may carry an API key that
+grants far more than the public fields, and the channel is not the caller's
+choice, so `HttpAssistant` sends fixed operations of its own.
+`config/graphql.yaml` is only loaded when the overblog bundle is registered.
+Its fields attach to the attribute-defined `RootQuery`/`RootMutation` of the
+graphql-search-bundle.
+
+From the console: `genai:ask <question> [--lang] [--category ...]`.
 
 ## Configuration
 

@@ -1,0 +1,7 @@
+GenAiAnswerSource:
+  type: object
+  config:
+    description: "A resource the content of a section comes from."
+    fields:
+      url: { type: "String!" }
+      title: { type: "String!" }

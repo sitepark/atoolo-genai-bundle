@@ -1,0 +1,8 @@
+GenAiAnswerLink:
+  type: object
+  config:
+    fields:
+      url: { type: "String!" }
+      label:
+        type: "String!"
+        description: "The text to link with, empty if the source offers none."
