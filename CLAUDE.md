@@ -64,6 +64,19 @@ assistant.
   reports only how many documents and chunks it wrote and how many it left
   unchanged, so a document counts as rejected when it is missing from both
   counts.
+- `ContentBeyondTitle` — a document whose text, apart from the words of
+  `title`, `headline` and `kicker`, has fewer than 20 letters or digits
+  (a job offer with "51 Jugendamt", a test article with "fsdfdfdf") answers
+  no question. The text is the `intro`, the section headlines and the HTML
+  of the text sections, with the alt text of images; link sections do not
+  count, a medium counts its `rawText`. The rule mirrors `ContentBeyondTitle`
+  of the application, which skips such a document as a safety net, and must
+  never be stricter. The `HttpIndexUpdater` - the first to see the finished
+  document, with what the enrichers of other bundles added - does not send
+  it but logs it and deletes its id, so an article that became empty leaves
+  the index with an incremental update, not only with the purge of the next
+  full run. A filtered document counts neither as accepted nor as rejected.
+  The dumper still shows every document.
 - `SiteKit\DefaultGenAiDocumentEnricher` — maps a SiteKit resource onto the
   document. Unlike the Solr enricher it does not flatten the resource into one
   string: it walks the content tree and turns every block that carries text or

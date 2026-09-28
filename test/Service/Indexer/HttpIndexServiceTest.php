@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Test\Service\Indexer;
 
+use Atoolo\GenAi\Dto\Indexer\TextSection;
 use Atoolo\GenAi\Service\GenAiHttpClient;
 use Atoolo\GenAi\Service\Indexer\GenAiDocument;
 use Atoolo\GenAi\Service\Indexer\GenAiDocumentFactory;
@@ -60,6 +61,9 @@ class HttpIndexServiceTest extends TestCase
         $document = $updater->createDocument();
         $this->assertInstanceOf(GenAiDocument::class, $document);
         $document->id = '123';
+        $document->content = [
+            new TextSection('', '<p>Der Antrag kann online gestellt werden.</p>'),
+        ];
         $updater->addDocument($document);
         $result = $updater->update();
 

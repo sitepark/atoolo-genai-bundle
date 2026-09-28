@@ -9,6 +9,8 @@ use Atoolo\Index\Service\Indexer\IndexService;
 use Atoolo\Index\Service\Indexer\IndexUpdater;
 use Atoolo\Resource\ResourceChannel;
 use Atoolo\Resource\ResourceLanguage;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * The GenAI application as an index target.
@@ -24,6 +26,7 @@ class HttpIndexService implements IndexService
         private readonly GenAiHttpClient $client,
         private readonly ResourceChannel $resourceChannel,
         private readonly GenAiDocumentFactory $documentFactory,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {}
 
     /**
@@ -53,6 +56,7 @@ class HttpIndexService implements IndexService
         return new HttpIndexUpdater(
             $this->client,
             $this->documentFactory,
+            $this->logger,
         );
     }
 

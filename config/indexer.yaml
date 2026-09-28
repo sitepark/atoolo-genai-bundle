@@ -15,6 +15,7 @@ services:
       - '@atoolo_genai.client'
       - '@atoolo_resource.resource_channel'
       - '@atoolo_genai.indexer.document_factory'
+      - '@logger'
 
   Atoolo\GenAi\Service\Indexer\SiteKit\DefaultGenAiDocumentEnricher:
     arguments:
