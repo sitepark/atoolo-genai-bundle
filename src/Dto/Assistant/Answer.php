@@ -10,8 +10,8 @@ namespace Atoolo\GenAi\Dto\Assistant;
 class Answer
 {
     /**
-     * @param ?string $id id of the stored answer, used to give feedback;
-     *   null if the application did not store it
+     * @param ?string $id id of the stored answer; null if the application
+     *   did not store it
      * @param ?string $feedbackToken token that lets the user who asked rate
      *   the answer for a short while, 15 minutes by default; null if the
      *   answer cannot be rated

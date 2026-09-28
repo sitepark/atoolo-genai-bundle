@@ -36,12 +36,13 @@ query {
 
 ```graphql
 mutation {
-  genAiAnswerFeedback(answerId: "a-1", feedbackToken: "t-1", feedback: GOOD)
+  genAiAnswerFeedback(feedbackToken: "t-1", feedback: GOOD)
 }
 ```
 
-The feedback needs the `feedbackToken` the answer came with. It is valid for
-15 minutes by default; within that time the feedback can be set, changed or
-withdrawn (`feedback: null`) as often as wanted, afterwards the mutation
-returns `false`. An answer without a token cannot be rated. Keep the token in
+The feedback takes the `feedbackToken` the answer came with, no answer id; the
+GenAI application finds the answer from the token. It is valid for 15 minutes
+by default; within that time the feedback can be set, changed or withdrawn
+(`feedback: null`) as often as wanted, afterwards the mutation returns
+`false`. An answer without a token cannot be rated. Keep the token in
 the memory of the page only, never in `localStorage` or the URL.

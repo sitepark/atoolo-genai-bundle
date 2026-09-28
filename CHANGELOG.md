@@ -4,9 +4,10 @@
 
 ### BREAKING CHANGES
 
-- `genAiAnswerFeedback` requires the `feedbackToken` of the answer, which
-  `genAiQuestion` now returns; `Assistant::feedback()` takes it as its second
-  argument. The token is valid for 15 minutes by default.
+- `genAiAnswerFeedback` takes the `feedbackToken` of the answer instead of
+  its `answerId`; `genAiQuestion` now returns the token, and
+  `Assistant::feedback()` takes it instead of the answer id. The token is
+  valid for 15 minutes by default.
 
 ### Features
 

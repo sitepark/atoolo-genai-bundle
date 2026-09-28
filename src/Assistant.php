@@ -21,18 +21,17 @@ interface Assistant
     public function ask(Question $question): Answer;
 
     /**
-     * Sets the feedback of a stored answer; null withdraws it.
+     * Sets the feedback of the answer the token was given for; null
+     * withdraws it.
      *
      * @param string $feedbackToken the token the answer came with; it binds
      *   the feedback to the user who asked and is only valid for a short
      *   while, 15 minutes by default
-     * @return bool false if the application knows no answer with this id,
-     *   the token is unknown, expired or was given for another answer, or
-     *   the content of the answer was deleted
+     * @return bool false if the token is unknown or expired, or the content
+     *   of the answer was deleted
      * @throws AssistantException
      */
     public function feedback(
-        string $answerId,
         string $feedbackToken,
         ?AnswerFeedback $feedback,
     ): bool;

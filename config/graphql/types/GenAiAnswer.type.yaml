@@ -5,7 +5,7 @@ GenAiAnswer:
     fields:
       id:
         type: ID
-        description: "Id of the answer, used to give feedback; null if it was not stored."
+        description: "Id of the answer; null if it was not stored."
       feedbackToken:
         type: String
         description: "Token to give feedback on the answer with genAiAnswerFeedback, valid for 15 minutes by default; null if the answer cannot be rated."

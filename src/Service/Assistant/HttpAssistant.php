@@ -61,16 +61,8 @@ class HttpAssistant implements Assistant
         GRAPHQL;
 
     private const FEEDBACK = <<<'GRAPHQL'
-        mutation AnswerFeedback(
-          $answerId: ID!
-          $feedbackToken: String!
-          $feedback: AnswerFeedback
-        ) {
-          answerFeedback(
-            answerId: $answerId
-            feedbackToken: $feedbackToken
-            feedback: $feedback
-          )
+        mutation AnswerFeedback($feedbackToken: String!, $feedback: AnswerFeedback) {
+          answerFeedback(feedbackToken: $feedbackToken, feedback: $feedback)
         }
         GRAPHQL;
 
@@ -121,13 +113,11 @@ class HttpAssistant implements Assistant
      * never stored or logged.
      */
     public function feedback(
-        string $answerId,
         string $feedbackToken,
         ?AnswerFeedback $feedback,
     ): bool {
         try {
             $data = $this->client->graphql(self::FEEDBACK, [
-                'answerId' => $answerId,
                 'feedbackToken' => $feedbackToken,
                 'feedback' => $feedback?->value,
             ]);
