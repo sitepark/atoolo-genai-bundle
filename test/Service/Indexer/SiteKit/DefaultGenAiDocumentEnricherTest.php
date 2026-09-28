@@ -7,6 +7,7 @@ namespace Atoolo\GenAi\Test\Service\Indexer\SiteKit;
 use Atoolo\GenAi\Dto\Indexer\LinkSection;
 use Atoolo\GenAi\Dto\Indexer\TextSection;
 use Atoolo\GenAi\Service\Indexer\GenAiDocument;
+use Atoolo\GenAi\Service\Indexer\SiteKit\ContactPointSections;
 use Atoolo\GenAi\Service\Indexer\SiteKit\DefaultGenAiDocumentEnricher;
 use Atoolo\Resource\DataBag;
 use Atoolo\Resource\Exception\ResourceNotFoundException;
@@ -17,11 +18,13 @@ use Atoolo\Resource\ResourceLanguage;
 use Atoolo\Resource\ResourceLocation;
 use Atoolo\Resource\ResourceTenant;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 #[CoversClass(DefaultGenAiDocumentEnricher::class)]
+#[UsesClass(ContactPointSections::class)]
 class DefaultGenAiDocumentEnricherTest extends TestCase
 {
     private DefaultGenAiDocumentEnricher $enricher;

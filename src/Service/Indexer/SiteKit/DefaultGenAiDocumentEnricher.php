@@ -32,54 +32,7 @@ use Psr\Log\LoggerAwareTrait;
  * Solr's ranking, sorting or access filtering has no place here - the
  * application knows none of it.
  *
- * @phpstan-type Phone array{
- *     type?:string,
- *     nationalNumber?:string,
- *     internationalNumber?:string,
- *     countryCode?:string,
- *     areaCode?:string,
- *     localNumber?:string,
- *     extension?:string
- * }
- * @phpstan-type PhoneData array{phone?:Phone}
- * @phpstan-type Email array{email?:string}
- * @phpstan-type ContactData array{
- *     phoneList?:array<PhoneData>,
- *     emailList?:array<Email>,
- *     room?:string
- * }
- * @phpstan-type AddressData array{
- *     buildingName?:string,
- *     street?:string,
- *     housenumber?:string,
- *     postalCode?:string,
- *     city?:string,
- *     postOfficeBoxData?:array{buildingName?:string},
- *     notice?:string,
- *     publicTransportationNotice?:string,
- *     accessibleDescription?:string
- * }
- * @phpstan-type TimeRange array{start?:?string, end?:?string}
- * @phpstan-type WeekSeries array{
- *     dayOfWeekList?:array<string>,
- *     timeRangeList?:array<TimeRange>,
- *     notice?:?string
- * }
- * @phpstan-type WeekBlock array{
- *     headline?:?string,
- *     notice?:?string,
- *     weekSeriesList?:array<WeekSeries>
- * }
- * @phpstan-type OpeningHours array{
- *     weekBlockList?:array<WeekBlock>,
- *     additionalText?:?array{text?:?string}
- * }
- * @phpstan-type ContactPoint array{
- *     headline?:string,
- *     contactData?:ContactData,
- *     addressData?:AddressData,
- *     openingHours?:OpeningHours
- * }
+ * @phpstan-import-type ContactPoint from ContactPointSections
  * @implements DocumentEnricher<GenAiDocument>
  */
 class DefaultGenAiDocumentEnricher implements
@@ -88,18 +41,10 @@ class DefaultGenAiDocumentEnricher implements
 {
     use LoggerAwareTrait;
 
-    private const WEEKDAYS = [
-        'MONDAY' => 'Montag',
-        'TUESDAY' => 'Dienstag',
-        'WEDNESDAY' => 'Mittwoch',
-        'THURSDAY' => 'Donnerstag',
-        'FRIDAY' => 'Freitag',
-        'SATURDAY' => 'Samstag',
-        'SUNDAY' => 'Sonntag',
-    ];
-
     /** @var array<string,string> */
     private array $categoryTitleCache = [];
+
+    private readonly ContactPointSections $contactPointSections;
 
     /**
      * @param list<string> $datedObjectTypes the object types whose date is
@@ -111,7 +56,9 @@ class DefaultGenAiDocumentEnricher implements
         private readonly ResourceChannel $resourceChannel,
         private readonly string $source = 'internal',
         private readonly array $datedObjectTypes = ['news'],
-    ) {}
+    ) {
+        $this->contactPointSections = new ContactPointSections();
+    }
 
     public function cleanup(): void
     {
@@ -285,11 +232,11 @@ class DefaultGenAiDocumentEnricher implements
 
         /** @var ContactPoint $contactPoint */
         $contactPoint = $resource->data->getArray('metadata.contactPoint');
-        $contact = $this->toContactSection($contactPoint);
+        $contact = $this->contactPointSections->contact($contactPoint);
         if ($contact !== null) {
             $sections[] = $contact;
         }
-        $openingHours = $this->toOpeningHoursSection(
+        $openingHours = $this->contactPointSections->openingHours(
             $contactPoint['openingHours'] ?? [],
         );
         if ($openingHours !== null) {
@@ -459,284 +406,6 @@ class DefaultGenAiDocumentEnricher implements
             $html .= '<cite>' . $this->escape($citation) . '</cite>';
         }
         return $html . '</blockquote>';
-    }
-
-    /**
-     * The contact point of a resource - phone number, address, how to get
-     * there - is not part of the content tree, although it answers the
-     * questions people ask most. It becomes a section of its own so that it
-     * is chunked and embedded with the rest.
-     *
-     * The facts go into one list, because a list is a single block to the
-     * GenAI application and so is never torn apart by the chunking. The
-     * notices follow as paragraphs of their own; they are prose and may well
-     * end up in another chunk.
-     *
-     * @param ContactPoint $contactPoint
-     */
-    private function toContactSection(array $contactPoint): ?TextSection
-    {
-        $contactData = $contactPoint['contactData'] ?? [];
-        $addressData = $contactPoint['addressData'] ?? [];
-
-        $facts = [];
-        foreach ($contactData['phoneList'] ?? [] as $entry) {
-            $phone = $entry['phone'] ?? [];
-            $number = $this->phoneNumber($phone);
-            if ($number !== '') {
-                $facts[] = $this->phoneLabel($phone) . ': ' . $number;
-            }
-        }
-        foreach ($contactData['emailList'] ?? [] as $entry) {
-            $email = trim($entry['email'] ?? '');
-            if ($email !== '') {
-                $facts[] = 'E-Mail: ' . $email;
-            }
-        }
-        $address = $this->address($addressData);
-        if ($address !== '') {
-            $facts[] = 'Adresse: ' . $address;
-        }
-        $postOfficeBox = trim(
-            $addressData['postOfficeBoxData']['buildingName'] ?? '',
-        );
-        if ($postOfficeBox !== '') {
-            $facts[] = 'Postfach: ' . $postOfficeBox;
-        }
-        $room = trim($contactData['room'] ?? '');
-        if ($room !== '') {
-            $facts[] = 'Raum: ' . $room;
-        }
-
-        $notices = [];
-        foreach (
-            [
-                'Hinweis' => $addressData['notice'] ?? '',
-                'Anfahrt' => $addressData['publicTransportationNotice'] ?? '',
-                'Barrierefreiheit'
-                    => $addressData['accessibleDescription'] ?? '',
-            ] as $label => $notice
-        ) {
-            $notice = trim($notice);
-            if ($notice !== '') {
-                $notices[] = $label . ': ' . $notice;
-            }
-        }
-
-        if (empty($facts) && empty($notices)) {
-            return null;
-        }
-
-        $html = '';
-        if (!empty($facts)) {
-            $html .= '<ul>';
-            foreach ($facts as $fact) {
-                $html .= '<li>' . $this->escape($fact) . '</li>';
-            }
-            $html .= '</ul>';
-        }
-        foreach ($notices as $notice) {
-            $html .= '<p>' . $this->escape($notice) . '</p>';
-        }
-
-        $headline = trim($contactPoint['headline'] ?? '');
-        return new TextSection(
-            $headline !== '' ? $headline : 'Kontakt',
-            $html,
-        );
-    }
-
-    /**
-     * The opening hours are a section of their own. Every week block becomes
-     * one list of days, so the application never tears a week apart. A block
-     * without headline and notice only continues the one before, as the
-     * website shows it. The additional text is the editor's HTML.
-     *
-     * @param OpeningHours $openingHours
-     */
-    private function toOpeningHoursSection(array $openingHours): ?TextSection
-    {
-        $html = '';
-        $weekBlocks = $this->mergeWeekBlocks(
-            $openingHours['weekBlockList'] ?? [],
-        );
-        foreach ($weekBlocks as $weekBlock) {
-            $days = [];
-            foreach ($weekBlock['weekSeriesList'] ?? [] as $weekSeries) {
-                $days = array_merge($days, $this->weekDays($weekSeries));
-            }
-            if (empty($days)) {
-                continue;
-            }
-
-            $headline = trim($weekBlock['headline'] ?? '');
-            if ($headline !== '') {
-                $html .= '<p>' . $this->escape($headline) . '</p>';
-            }
-            $html .= '<ul>';
-            foreach ($days as $day) {
-                $html .= '<li>' . $this->escape($day) . '</li>';
-            }
-            $html .= '</ul>';
-            $notice = trim($weekBlock['notice'] ?? '');
-            if ($notice !== '') {
-                $html .= '<p>' . $this->escape($notice) . '</p>';
-            }
-        }
-
-        $html .= trim($openingHours['additionalText']['text'] ?? '');
-
-        return $html === ''
-            ? null
-            : new TextSection('Öffnungszeiten', $html);
-    }
-
-    /**
-     * @param array<WeekBlock> $weekBlockList
-     * @return array<WeekBlock>
-     */
-    private function mergeWeekBlocks(array $weekBlockList): array
-    {
-        $merged = [];
-        foreach ($weekBlockList as $weekBlock) {
-            $last = array_key_last($merged);
-            if (
-                $last !== null
-                && trim($weekBlock['headline'] ?? '') === ''
-                && trim($weekBlock['notice'] ?? '') === ''
-            ) {
-                $merged[$last]['weekSeriesList'] = array_merge(
-                    $merged[$last]['weekSeriesList'] ?? [],
-                    $weekBlock['weekSeriesList'] ?? [],
-                );
-                continue;
-            }
-            $merged[] = $weekBlock;
-        }
-        return $merged;
-    }
-
-    /**
-     * @param WeekSeries $weekSeries
-     * @return string[]
-     */
-    private function weekDays(array $weekSeries): array
-    {
-        $ranges = [];
-        foreach ($weekSeries['timeRangeList'] ?? [] as $timeRange) {
-            $start = trim($timeRange['start'] ?? '');
-            $end = trim($timeRange['end'] ?? '');
-            if ($start !== '' && $end !== '') {
-                $ranges[] = $start . ' - ' . $end . ' Uhr';
-            } elseif ($start !== '' || $end !== '') {
-                $ranges[] = ($start !== '' ? 'ab ' . $start : 'bis ' . $end)
-                    . ' Uhr';
-            }
-        }
-        $notice = trim($weekSeries['notice'] ?? '');
-        if (empty($ranges) && $notice === '') {
-            return [];
-        }
-
-        $text = implode(' und ', $ranges);
-        if ($notice !== '') {
-            $text = $text === '' ? $notice : $text . ' (' . $notice . ')';
-        }
-
-        $days = [];
-        foreach ($weekSeries['dayOfWeekList'] ?? [] as $dayOfWeek) {
-            $day = self::WEEKDAYS[strtoupper($dayOfWeek)] ?? null;
-            if ($day !== null) {
-                $days[] = $day . ': ' . $text;
-            }
-        }
-        return $days;
-    }
-
-    /**
-     * SiteKit keeps the number in a readable form next to its parts, so the
-     * parts are only assembled when it does not. The readable form already
-     * ends with the extension.
-     *
-     * @param Phone $phone
-     */
-    private function phoneNumber(array $phone): string
-    {
-        foreach (['nationalNumber', 'internationalNumber'] as $name) {
-            $number = trim($phone[$name] ?? '');
-            if ($number !== '') {
-                return $number;
-            }
-        }
-
-        $countryCode = trim($phone['countryCode'] ?? '');
-        $areaCode = trim($phone['areaCode'] ?? '');
-        $localNumber = trim($phone['localNumber'] ?? '');
-        if ($localNumber === '') {
-            return '';
-        }
-
-        if ($countryCode !== '') {
-            $number = '+' . $countryCode . ' ' . $areaCode;
-        } elseif ($areaCode !== '') {
-            $number = '0' . $areaCode;
-        } else {
-            $number = '';
-        }
-
-        return $this->withExtension(
-            trim($number . ' ' . $localNumber),
-            $phone,
-        );
-    }
-
-    /**
-     * @param Phone $phone
-     */
-    private function withExtension(string $number, array $phone): string
-    {
-        $extension = trim($phone['extension'] ?? '');
-        return $extension === '' ? $number : $number . '-' . $extension;
-    }
-
-    /**
-     * @param Phone $phone
-     */
-    private function phoneLabel(array $phone): string
-    {
-        return strtolower($phone['type'] ?? '') === 'fax'
-            ? 'Fax'
-            : 'Telefon';
-    }
-
-    /**
-     * @param AddressData $addressData
-     */
-    private function address(array $addressData): string
-    {
-        $street = trim(
-            trim($addressData['street'] ?? '')
-            . ' ' . trim($addressData['housenumber'] ?? ''),
-        );
-        $city = trim(
-            trim($addressData['postalCode'] ?? '')
-            . ' ' . trim($addressData['city'] ?? ''),
-        );
-
-        $parts = [];
-        foreach (
-            [
-                trim($addressData['buildingName'] ?? ''),
-                $street,
-                $city,
-            ] as $part
-        ) {
-            if ($part !== '') {
-                $parts[] = $part;
-            }
-        }
-
-        return implode(', ', $parts);
     }
 
     private function escape(string $text): string

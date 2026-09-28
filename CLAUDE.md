@@ -100,6 +100,22 @@ assistant.
   of the document is made absolute with `https://` and the `serverName` of the
   `ResourceChannel`, because the application links the sources of an answer; a
   url that already names a host is kept.
+- `SiteKit\ContactPointSections` — renders a SiteKit contact point: its
+  facts, led by the name of the organisation, in one list, the notices as
+  paragraphs, the opening hours as a section of their own. The default
+  enricher uses it for `metadata.contactPoint`, the event enricher for the
+  contact points inside an event.
+- `SiteKit\EventGenAiDocumentEnricher` — adds the facts of an
+  `eventsCalendar-event`, which are not part of its text: the dates of
+  `metadata.scheduling` as one list "Termine" - the days of a date over
+  several days joined again, a status other than `available` named, at most
+  15 dates and then the last one - and the `eventsCalendar.contactSection`s
+  of the content (venue, ticket agency, organizers), whose contact points
+  become sections of their own and whose categories are added to the
+  document. An event has no `metadata.contactPoint`. The `date` of an event
+  stays unset: its dates are text, not the age of the document. It runs
+  after the default enricher (priority 50), so its sections follow the
+  description; a project adds its own event data after it (priority < 50).
 
 **The index is the channel.** The application separates its indices by the
 `channel`, the way Solr does by its cores. Every document, delete and purge

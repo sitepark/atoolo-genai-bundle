@@ -26,6 +26,12 @@ services:
     tags:
       - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }
 
+  # dates, venue, organizer and ticket agency of an event, after the
+  # default enricher, which maps its description
+  Atoolo\GenAi\Service\Indexer\SiteKit\EventGenAiDocumentEnricher:
+    tags:
+      - { name: 'atoolo_genai.indexer.document_enricher', priority: 50 }
+
   atoolo_genai.indexer.resource_filter:
     class: Atoolo\GenAi\Service\Indexer\ChannelLanguageFilter
     arguments:
