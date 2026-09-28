@@ -12,6 +12,9 @@ class Answer
     /**
      * @param ?string $id id of the stored answer, used to give feedback;
      *   null if the application did not store it
+     * @param ?string $feedbackToken token that lets the user who asked rate
+     *   the answer for a short while, 15 minutes by default; null if the
+     *   answer cannot be rated
      * @param AnswerSection[] $sections the parts of the answer; with an
      *   error the hints how to ask more precisely, possibly none
      * @param ?AnswerError $error why the documents did not answer the
@@ -20,6 +23,7 @@ class Answer
      */
     public function __construct(
         public readonly ?string $id = null,
+        public readonly ?string $feedbackToken = null,
         public readonly array $sections = [],
         public readonly ?AnswerError $error = null,
         public readonly float $duration = 0.0,

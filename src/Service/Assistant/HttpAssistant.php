@@ -46,6 +46,7 @@ class HttpAssistant implements Assistant
             categoryIds: $categoryIds
           ) {
             id
+            feedbackToken
             error
             sections {
               type
@@ -60,8 +61,16 @@ class HttpAssistant implements Assistant
         GRAPHQL;
 
     private const FEEDBACK = <<<'GRAPHQL'
-        mutation AnswerFeedback($answerId: ID!, $feedback: AnswerFeedback) {
-          answerFeedback(answerId: $answerId, feedback: $feedback)
+        mutation AnswerFeedback(
+          $answerId: ID!
+          $feedbackToken: String!
+          $feedback: AnswerFeedback
+        ) {
+          answerFeedback(
+            answerId: $answerId
+            feedbackToken: $feedbackToken
+            feedback: $feedback
+          )
         }
         GRAPHQL;
 
@@ -96,6 +105,9 @@ class HttpAssistant implements Assistant
 
         return new Answer(
             is_string($answer['id'] ?? null) ? $answer['id'] : null,
+            is_string($answer['feedbackToken'] ?? null)
+                ? $answer['feedbackToken']
+                : null,
             $this->toSections($answer['sections'] ?? null),
             is_string($answer['error'] ?? null)
                 ? AnswerError::tryFrom($answer['error'])
@@ -104,11 +116,19 @@ class HttpAssistant implements Assistant
         );
     }
 
-    public function feedback(string $answerId, ?AnswerFeedback $feedback): bool
-    {
+    /**
+     * The token is a secret of the user who asked; it is only passed on,
+     * never stored or logged.
+     */
+    public function feedback(
+        string $answerId,
+        string $feedbackToken,
+        ?AnswerFeedback $feedback,
+    ): bool {
         try {
             $data = $this->client->graphql(self::FEEDBACK, [
                 'answerId' => $answerId,
+                'feedbackToken' => $feedbackToken,
                 'feedback' => $feedback?->value,
             ]);
         } catch (GenAiRequestException $e) {

@@ -58,12 +58,12 @@ class AssistantTest extends TestCase
         $genAiAssistant = $this->createMock(GenAiAssistant::class);
         $genAiAssistant->expects($this->once())
             ->method('feedback')
-            ->with('a-1', AnswerFeedback::GOOD)
+            ->with('a-1', 't-1', AnswerFeedback::GOOD)
             ->willReturn(true);
 
         $this->assertTrue(
             (new Assistant($genAiAssistant))
-                ->answerFeedback('a-1', AnswerFeedback::GOOD),
+                ->answerFeedback('a-1', 't-1', AnswerFeedback::GOOD),
             'the result of the assistant should be returned',
         );
     }
@@ -110,7 +110,7 @@ class AssistantTest extends TestCase
 
         try {
             (new Assistant($genAiAssistant))
-                ->answerFeedback('a-1', AnswerFeedback::BAD);
+                ->answerFeedback('a-1', 't-1', AnswerFeedback::BAD);
             $this->fail('the error should be passed on');
         } catch (AssistantError $e) {
             $this->assertEquals(

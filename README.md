@@ -17,3 +17,31 @@ bundle only provides the target implementation, the document, its enricher and
 the assistant.
 
 [Documentation](https://sitepark.github.io/atoolo-docs/develop/bundles/genai/)
+
+## Asking through GraphQL
+
+The bundle adds a question and the feedback on its answer to the atoolo
+GraphQL schema:
+
+```graphql
+query {
+  genAiQuestion(query: "Wann hat das Bürgerbüro geöffnet?") {
+    id
+    feedbackToken
+    error
+    sections { type headline html links { url label } sources { url title } }
+  }
+}
+```
+
+```graphql
+mutation {
+  genAiAnswerFeedback(answerId: "a-1", feedbackToken: "t-1", feedback: GOOD)
+}
+```
+
+The feedback needs the `feedbackToken` the answer came with. It is valid for
+15 minutes by default; within that time the feedback can be set, changed or
+withdrawn (`feedback: null`) as often as wanted, afterwards the mutation
+returns `false`. An answer without a token cannot be rated. Keep the token in
+the memory of the page only, never in `localStorage` or the URL.

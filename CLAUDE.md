@@ -158,7 +158,7 @@ transport detail leaks upwards.
 | delete by id | `POST /api/index/documents/delete` `{channel, source, ids}` |
 | purge by process id | `POST /api/index/purge` `{channel, source, keepProcessId}` |
 | ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds)` |
-| feedback | GraphQL `POST /graphql`, mutation `answerFeedback(answerId!, feedback)` |
+| feedback | GraphQL `POST /graphql`, mutation `answerFeedback(answerId!, feedbackToken!, feedback)` |
 
 There is no commit; documents are searchable as soon as the bulk request
 returns. A document requires its `channel` - at most 64 letters, digits,
@@ -181,8 +181,9 @@ indexer never carry it.
 ### Assistant (`src/Assistant.php`, `src/Service/Assistant/`)
 
 `Assistant::ask(Question): Answer` and `Assistant::feedback(answerId,
-feedback): bool`, implemented by `HttpAssistant`. The answer is structured as
-the application delivers it: an `id` to give feedback with, `sections` - TEXT
+feedbackToken, feedback): bool`, implemented by `HttpAssistant`. The answer is
+structured as the application delivers it: an `id` and a `feedbackToken` to
+give feedback with, `sections` - TEXT
 with `html`, LINKS with `links`, each with its `sources` - and an `error` when
 the documents did not answer the question, whose sections are then the hints
 how to ask more precisely. The DTOs and enums in `Dto\Assistant\` mirror the
@@ -192,13 +193,23 @@ of the channel, because the application requires it. Reading the feedback
 back is not public in the application, so it is not offered; a frontend keeps
 what it has set.
 
+**Feedback only with the token.** The application binds the feedback to the
+user who asked: only the `feedbackToken` of the answer allows it, for 15
+minutes by default and as often as wanted; the token lives in the memory of
+the application only. After that, after a restart, with a wrong token or for
+an answer whose content was deleted, the feedback returns `false`. An answer
+without a token (`null`) cannot be rated. The token is a secret of the user
+who asked: the bundle passes it on, never stores it (no session, cache or
+database) and never puts it into a log, an exception or an error message.
+
 **Through GraphQL, not passed through.** `GraphQL\Assistant` adds
 `genAiQuestion(query!, lang, categoryIds): GenAiAnswer!` and the mutation
-`genAiAnswerFeedback(answerId!, feedback): Boolean!` to the atoolo schema; the
-types are in `config/graphql/types`, prefixed with `GenAi`. The request of
-the caller is never handed on as it is: the client may carry an API key that
-grants far more than the public fields, and the channel is not the caller's
-choice, so `HttpAssistant` sends fixed operations of its own.
+`genAiAnswerFeedback(answerId!, feedbackToken!, feedback): Boolean!` to the
+atoolo schema; the types are in `config/graphql/types`, prefixed with
+`GenAi`. The request of the caller is never handed on as it is: the client
+may carry an API key that grants far more than the public fields, and the
+channel is not the caller's choice, so `HttpAssistant` sends fixed
+operations of its own.
 `config/graphql.yaml` is only loaded when the overblog bundle is registered.
 
 **Errors keep their classification.** The application refuses a question

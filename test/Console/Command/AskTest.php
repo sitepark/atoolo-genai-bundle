@@ -30,6 +30,7 @@ class AskTest extends TestCase
     {
         $tester = $this->createTester(new Answer(
             'a-1',
+            't-1',
             [
                 new AnswerSection(
                     AnswerSectionType::TEXT,
@@ -78,6 +79,7 @@ class AskTest extends TestCase
     public function testExecuteWithError(): void
     {
         $tester = $this->createTester(new Answer(
+            null,
             null,
             [new AnswerSection(
                 AnswerSectionType::TEXT,

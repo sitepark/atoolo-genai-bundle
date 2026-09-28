@@ -74,21 +74,34 @@ class Assistant
 
     #[GQL\Mutation(name: 'genAiAnswerFeedback', type: 'Boolean!')]
     #[GQL\Description(
-        'Sets the feedback of an answer; null withdraws it. False if the '
-        . 'answer is unknown.',
+        'Sets the feedback of an answer; null withdraws it. Takes the '
+        . 'feedbackToken of the answer and works only while it is valid, 15 '
+        . 'minutes by default. False if the answer is unknown, its content '
+        . 'was deleted, or the token is unknown, expired or was given for '
+        . 'another answer.',
     )]
     #[GQL\Arg(
         name: 'answerId',
         type: 'ID!',
         description: 'The id of the answer.',
     )]
+    #[GQL\Arg(
+        name: 'feedbackToken',
+        type: 'String!',
+        description: 'The feedbackToken the answer came with.',
+    )]
     #[GQL\Arg(name: 'feedback', type: 'GenAiAnswerFeedback')]
     public function answerFeedback(
         string $answerId,
+        string $feedbackToken,
         ?AnswerFeedback $feedback = null,
     ): bool {
         try {
-            return $this->assistant->feedback($answerId, $feedback);
+            return $this->assistant->feedback(
+                $answerId,
+                $feedbackToken,
+                $feedback,
+            );
         } catch (AssistantException $e) {
             throw $this->toError($e);
         }

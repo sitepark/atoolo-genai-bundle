@@ -286,7 +286,7 @@ class HttpAssistantTest extends TestCase
         $assistant = $this->createAssistant('{}', 503);
 
         try {
-            $assistant->feedback('a-1', AnswerFeedback::GOOD);
+            $assistant->feedback('a-1', 't-1', AnswerFeedback::GOOD);
             $this->fail('a failed request should throw');
         } catch (AssistantException $e) {
             $this->assertEquals(
@@ -304,11 +304,11 @@ class HttpAssistantTest extends TestCase
         );
 
         $this->assertTrue(
-            $assistant->feedback('a-1', AnswerFeedback::GOOD),
+            $assistant->feedback('a-1', 't-1', AnswerFeedback::GOOD),
             'a known answer should take the feedback',
         );
         $this->assertEquals(
-            ['answerId' => 'a-1', 'feedback' => 'GOOD'],
+            ['answerId' => 'a-1', 'feedbackToken' => 't-1', 'feedback' => 'GOOD'],
             $this->variables(),
             'unexpected variables',
         );
@@ -320,10 +320,10 @@ class HttpAssistantTest extends TestCase
             '{"data":{"answerFeedback":true}}',
         );
 
-        $assistant->feedback('a-1', null);
+        $assistant->feedback('a-1', 't-1', null);
 
         $this->assertEquals(
-            ['answerId' => 'a-1', 'feedback' => null],
+            ['answerId' => 'a-1', 'feedbackToken' => 't-1', 'feedback' => null],
             $this->variables(),
             'null should be sent to withdraw the feedback',
         );
@@ -336,8 +336,92 @@ class HttpAssistantTest extends TestCase
         );
 
         $this->assertFalse(
-            $assistant->feedback('a-1', AnswerFeedback::BAD),
+            $assistant->feedback('a-1', 't-1', AnswerFeedback::BAD),
             'an unknown answer should be reported',
+        );
+    }
+
+    public function testFeedbackWithAnUnknownOrExpiredToken(): void
+    {
+        $assistant = $this->createAssistant(
+            '{"data":{"answerFeedback":false}}',
+        );
+
+        $this->assertFalse(
+            $assistant->feedback('a-1', 'expired', AnswerFeedback::GOOD),
+            'an unknown or expired token should be reported',
+        );
+    }
+
+    public function testFeedbackSendsTheToken(): void
+    {
+        $assistant = $this->createAssistant(
+            '{"data":{"answerFeedback":true}}',
+        );
+
+        $assistant->feedback('a-1', 't-1', AnswerFeedback::GOOD);
+
+        $body = $this->requests[0]['body'];
+        $this->assertStringContainsString(
+            'answerFeedback(',
+            $body,
+            'the feedback mutation should be sent',
+        );
+        $this->assertStringContainsString(
+            'feedbackToken: $feedbackToken',
+            $body,
+            'the token should be passed to the mutation',
+        );
+    }
+
+    public function testAskTakesTheFeedbackToken(): void
+    {
+        $assistant = $this->createAssistant(json_encode(['data' => [
+            'question' => [
+                'id' => 'a-1',
+                'feedbackToken' => 't-1',
+                'sections' => [],
+            ],
+        ]], JSON_THROW_ON_ERROR));
+
+        $answer = $assistant->ask(new Question('why?'));
+
+        $this->assertEquals(
+            't-1',
+            $answer->feedbackToken,
+            'the token should be taken from the answer',
+        );
+        $this->assertStringContainsString(
+            'feedbackToken',
+            $this->requests[0]['body'],
+            'the token should be asked for',
+        );
+    }
+
+    /**
+     * @return iterable<string,array{array<string,mixed>}>
+     */
+    public static function answersWithoutFeedbackToken(): iterable
+    {
+        yield 'missing' => [[]];
+        yield 'null' => [['feedbackToken' => null]];
+    }
+
+    /**
+     * @param array<string,mixed> $token
+     */
+    #[DataProvider('answersWithoutFeedbackToken')]
+    public function testAnAnswerWithoutTokenCannotBeRated(array $token): void
+    {
+        $assistant = $this->createAssistant(json_encode(
+            ['data' => ['question' => ['id' => 'a-1', 'sections' => []]
+                + $token]],
+            JSON_THROW_ON_ERROR,
+        ));
+
+        $this->assertNull(
+            $assistant->ask(new Question('why?'))->feedbackToken,
+            'without a token the answer cannot be rated',
         );
     }
 
@@ -346,7 +430,7 @@ class HttpAssistantTest extends TestCase
         $assistant = $this->createAssistant('{}', 500);
 
         $this->expectException(AssistantException::class);
-        $assistant->feedback('a-1', AnswerFeedback::BAD);
+        $assistant->feedback('a-1', 't-1', AnswerFeedback::BAD);
     }
 
     /**
