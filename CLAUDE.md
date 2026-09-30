@@ -160,6 +160,13 @@ transport detail leaks upwards.
 | ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds)` |
 | feedback | GraphQL `POST /graphql`, mutation `answerFeedback(feedbackToken!, feedback)` |
 
+The application lets one request at a time write a source and refuses an
+index request with `409` once it waited `GENAI_INDEX_LOCK_TIMEOUT` for
+another. `GenAiHttpClient::request()` sends a request under `api/index/`
+again after each pause of `GENAI_BUSY_RETRIES` and only then throws, with a
+message naming the other index run; other paths and statuses are never
+repeated. Tests inject the `sleep` callable, so they never wait.
+
 There is no commit; documents are searchable as soon as the bulk request
 returns. A document requires its `channel` - at most 64 letters, digits,
 `.`, `_` or `-`. Its `hash` is expected to let the application skip an
@@ -248,6 +255,7 @@ connection, so that each one can be set on its own:
 | `GENAI_PATH` | *(empty)* |
 | `GENAI_API_KEY` | *(empty, no key is sent)* |
 | `GENAI_IDLE_TIMEOUT` | `300` |
+| `GENAI_BUSY_RETRIES` | `15,30,60` *(seconds between the attempts of an index request refused with 409, empty disables)* |
 
 Without any of them the bundle talks to `http://localhost:8080`.
 `GENAI_IDLE_TIMEOUT` is the seconds the client waits for the next byte of an

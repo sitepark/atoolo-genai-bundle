@@ -17,3 +17,9 @@
   ticket agency as sections of their own, and the categories of venue and
   organizers.
 - A contact point names its organisation.
+
+### Bug Fixes
+
+- An index request the GenAI application refuses with `409`, because another
+  run writes the same source, is sent again after 15, 30 and 60 seconds
+  (`GENAI_BUSY_RETRIES`) instead of aborting the index run.

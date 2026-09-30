@@ -13,6 +13,11 @@ parameters:
   atoolo_genai.connection.url: '%atoolo_genai.connection.scheme%://%atoolo_genai.connection.host%:%atoolo_genai.connection.port%%atoolo_genai.connection.path%'
   atoolo_genai.connection.api_key: '%env(default:atoolo_genai.connection.api_key.default:GENAI_API_KEY)%'
   atoolo_genai.connection.idle_timeout: '%env(default:atoolo_genai.connection.idle_timeout.default:GENAI_IDLE_TIMEOUT)%'
+  # pauses in seconds between the attempts of an index request the
+  # application refuses with 409 because another run writes the source,
+  # comma separated; empty disables the retry
+  atoolo_genai.connection.busy_retries.default: '15,30,60'
+  atoolo_genai.connection.busy_retries: '%env(csv:default:atoolo_genai.connection.busy_retries.default:GENAI_BUSY_RETRIES)%'
   # the object types whose date is relevant, comma separated; the other
   # documents are sent without a date, so that their age does not matter
   atoolo_genai.indexer.dated_object_types.default: 'news'
@@ -42,6 +47,7 @@ services:
       - '%atoolo_genai.connection.url%'
       - '%atoolo_genai.connection.api_key%'
       - '@?request_stack'
+      - '%atoolo_genai.connection.busy_retries%'
 
   atoolo_genai.assistant:
     class: Atoolo\GenAi\Service\Assistant\HttpAssistant

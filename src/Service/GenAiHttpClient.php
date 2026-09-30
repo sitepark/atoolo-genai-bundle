@@ -6,6 +6,7 @@ namespace Atoolo\GenAi\Service;
 
 use Atoolo\GenAi\Exception\GenAiGraphQlException;
 use Atoolo\GenAi\Exception\GenAiRequestException;
+use Closure;
 use JsonException;
 use Symfony\Component\HttpClient\Exception\JsonException as HttpJsonException;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -27,15 +28,49 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * application limit requests per ip. Only the ip Symfony resolved is sent,
  * honouring the trusted proxies; a chain the caller sent along could be
  * forged and is not passed on.
+ *
+ * The application refuses an index request with 409 when another request
+ * held the source it writes for longer than the application waits, as a
+ * bulk of a full run does while it embeds. Such a request is sent again
+ * after each of the `busyRetryDelays` (in seconds), so an incremental update
+ * does not abort because a full run is busy; other paths and other statuses
+ * are never repeated.
  */
 class GenAiHttpClient
 {
+    private const INDEX_PATH = 'api/index/';
+
+    private const STATUS_CONFLICT = 409;
+
+    /**
+     * @var list<int>
+     */
+    private readonly array $busyRetryDelays;
+
+    private readonly Closure $sleep;
+
+    /**
+     * @param list<int|string> $busyRetryDelays
+     */
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly string $baseUrl,
         private readonly string $apiKey = '',
         private readonly ?RequestStack $requestStack = null,
-    ) {}
+        array $busyRetryDelays = [15, 30, 60],
+        ?Closure $sleep = null,
+    ) {
+        // the csv env var processor delivers strings
+        $this->busyRetryDelays = array_values(array_map(
+            'intval',
+            array_filter(
+                $busyRetryDelays,
+                static fn(int|string $delay): bool => trim((string) $delay)
+                    !== '',
+            ),
+        ));
+        $this->sleep = $sleep ?? sleep(...);
+    }
 
     /**
      * @param array<string,mixed>|list<mixed>|null $json
@@ -48,6 +83,42 @@ class GenAiHttpClient
         string $path,
         ?array $json = null,
         array $headers = [],
+    ): array {
+        $retryable = str_starts_with(ltrim($path, '/'), self::INDEX_PATH);
+        $attempt = 0;
+        while (true) {
+            try {
+                return $this->send($method, $path, $json, $headers);
+            } catch (GenAiRequestException $e) {
+                if (!$retryable || $e->getCode() !== self::STATUS_CONFLICT) {
+                    throw $e;
+                }
+                if (!isset($this->busyRetryDelays[$attempt])) {
+                    throw new GenAiRequestException(
+                        $e->getMessage() . ': the source is being written'
+                        . ' by another index run, gave up after '
+                        . ($attempt + 1) . ' attempt(s)',
+                        self::STATUS_CONFLICT,
+                        $e,
+                    );
+                }
+                ($this->sleep)($this->busyRetryDelays[$attempt]);
+                $attempt++;
+            }
+        }
+    }
+
+    /**
+     * @param array<string,mixed>|list<mixed>|null $json
+     * @param array<string,string> $headers
+     * @return array<string,mixed>
+     * @throws GenAiRequestException
+     */
+    private function send(
+        string $method,
+        string $path,
+        ?array $json,
+        array $headers,
     ): array {
         $url = rtrim($this->baseUrl, '/') . '/' . ltrim($path, '/');
 

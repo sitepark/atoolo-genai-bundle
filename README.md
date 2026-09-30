@@ -46,3 +46,19 @@ by default; within that time the feedback can be set, changed or withdrawn
 (`feedback: null`) as often as wanted, afterwards the mutation returns
 `false`. An answer without a token cannot be rated. Keep the token in
 the memory of the page only, never in `localStorage` or the URL.
+
+## Busy index
+
+The GenAI application lets one request at a time write a source. A request
+that waits longer than the application's `GENAI_INDEX_LOCK_TIMEOUT` - for
+instance an incremental update after a publish while a bulk of a full run is
+embedding - is refused with `409`. The bundle then sends the index request
+again after a pause, by default after 15, 30 and 60 seconds, and only fails
+once every attempt was refused. Other requests and other statuses are never
+repeated.
+
+`GENAI_BUSY_RETRIES` sets the pauses in seconds, comma separated
+(`15,30,60`); the number of pauses is the number of retries, an empty value
+disables the retry. The lock timeout of the application must stay below
+`GENAI_IDLE_TIMEOUT` (300 seconds by default), so that the application
+answers with `409` before the bundle gives up the connection.

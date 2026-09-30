@@ -360,6 +360,165 @@ class GenAiHttpClientTest extends TestCase
         );
     }
 
+    public function testIndexRequestIsRetriedWhileSourceIsBusy(): void
+    {
+        $pauses = [];
+        $httpClient = new MockHttpClient([
+            new MockResponse('', ['http_code' => 409]),
+            new MockResponse('{"documents":1}'),
+        ]);
+        $client = $this->createRetryingClient($httpClient, $pauses);
+
+        $result = $client->request('POST', 'api/index/documents', []);
+
+        $this->assertEquals(
+            ['documents' => 1],
+            $result,
+            'the retried request should return the answer of the application',
+        );
+        $this->assertEquals(
+            [15],
+            $pauses,
+            'the client should pause once before the second attempt',
+        );
+    }
+
+    public function testIndexRequestFailsWhenSourceStaysBusy(): void
+    {
+        $pauses = [];
+        $httpClient = new MockHttpClient(array_fill(
+            0,
+            4,
+            new MockResponse('', ['http_code' => 409]),
+        ));
+        $client = $this->createRetryingClient($httpClient, $pauses);
+
+        try {
+            $client->request('POST', 'api/index/documents', []);
+            $this->fail('a source busy on every attempt should fail');
+        } catch (GenAiRequestException $e) {
+            $this->assertEquals(409, $e->getCode(), 'unexpected code');
+            $this->assertStringContainsString(
+                'another index run',
+                $e->getMessage(),
+                'the message should name the cause',
+            );
+        }
+        $this->assertEquals(
+            4,
+            $httpClient->getRequestsCount(),
+            'the client should try once and retry three times',
+        );
+        $this->assertEquals(
+            [15, 30, 60],
+            $pauses,
+            'the pauses should grow',
+        );
+    }
+
+    public function testIndexRequestIsNotRetriedWithoutDelays(): void
+    {
+        $pauses = [];
+        $httpClient = new MockHttpClient([
+            new MockResponse('', ['http_code' => 409]),
+        ]);
+        $client = $this->createRetryingClient($httpClient, $pauses, []);
+
+        $this->expectException(GenAiRequestException::class);
+        $this->expectExceptionCode(409);
+        try {
+            $client->request('POST', 'api/index/purge', []);
+        } finally {
+            $this->assertEquals(
+                1,
+                $httpClient->getRequestsCount(),
+                'an empty list of delays should disable the retry',
+            );
+        }
+    }
+
+    public function testStringDelaysAreAccepted(): void
+    {
+        $pauses = [];
+        $httpClient = new MockHttpClient([
+            new MockResponse('', ['http_code' => 409]),
+            new MockResponse('{}'),
+        ]);
+        $client = $this->createRetryingClient(
+            $httpClient,
+            $pauses,
+            ['5', ''],
+        );
+
+        $client->request('POST', 'api/index/purge', []);
+
+        $this->assertSame(
+            [5],
+            $pauses,
+            'the delays of the csv env var should become integers',
+        );
+    }
+
+    public function testGraphQlIsNotRetriedOnConflict(): void
+    {
+        $pauses = [];
+        $httpClient = new MockHttpClient([
+            new MockResponse('', ['http_code' => 409]),
+        ]);
+        $client = $this->createRetryingClient($httpClient, $pauses);
+
+        $this->expectException(GenAiRequestException::class);
+        try {
+            $client->graphql('{ roles }');
+        } finally {
+            $this->assertEquals(
+                1,
+                $httpClient->getRequestsCount(),
+                'only index requests should be retried',
+            );
+        }
+    }
+
+    public function testServerErrorIsNotRetried(): void
+    {
+        $pauses = [];
+        $httpClient = new MockHttpClient([
+            new MockResponse('', ['http_code' => 500]),
+        ]);
+        $client = $this->createRetryingClient($httpClient, $pauses);
+
+        $this->expectException(GenAiRequestException::class);
+        $this->expectExceptionCode(500);
+        try {
+            $client->request('POST', 'api/index/purge', []);
+        } finally {
+            $this->assertEquals(
+                1,
+                $httpClient->getRequestsCount(),
+                'only a busy source should be retried',
+            );
+        }
+    }
+
+    /**
+     * @param list<int> $pauses
+     * @param list<int|string> $delays
+     */
+    private function createRetryingClient(
+        MockHttpClient $httpClient,
+        array &$pauses,
+        array $delays = [15, 30, 60],
+    ): GenAiHttpClient {
+        return new GenAiHttpClient(
+            $httpClient,
+            'https://genai.example.com',
+            busyRetryDelays: $delays,
+            sleep: static function (int $seconds) use (&$pauses): void {
+                $pauses[] = $seconds;
+            },
+        );
+    }
+
     private function createClient(
         MockResponse $response,
         array &$requests,
