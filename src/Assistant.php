@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi;
 
-use Atoolo\GenAi\Dto\Assistant\Answer;
+use Atoolo\GenAi\Dto\Assistant\QuestionResult;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\GenAi\Exception\AssistantException;
@@ -18,7 +18,7 @@ interface Assistant
     /**
      * @throws AssistantException
      */
-    public function ask(Question $question): Answer;
+    public function ask(Question $question): QuestionResult;
 
     /**
      * Sets the feedback of the answer the token was given for; null

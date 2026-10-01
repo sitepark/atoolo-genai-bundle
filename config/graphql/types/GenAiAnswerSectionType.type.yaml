@@ -1,4 +1,0 @@
-GenAiAnswerSectionType:
-  type: enum
-  config:
-    enumClass: Atoolo\GenAi\Dto\Assistant\AnswerSectionType

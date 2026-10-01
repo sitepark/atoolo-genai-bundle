@@ -1,10 +1,11 @@
-GenAiAnswerSection:
-  type: interface
+GenAiLinksSection:
+  type: object
   config:
-    description: "One part of an answer: a GenAiTextSection or a GenAiLinksSection."
+    description: "A list of links of an answer, each with a label."
+    interfaces: [GenAiAnswerSection]
     fields:
       headline: { type: "String!" }
+      links: { type: "[GenAiAnswerLink!]!" }
       sources:
         type: "[GenAiAnswerSource!]!"
         description: "The resources the content comes from, empty if it comes from none in particular."
-    resolveType: "@=service('atoolo_genai.graphql.type_resolver').resolveType(value)"

@@ -58,6 +58,10 @@ services:
   Atoolo\GenAi\Assistant:
     alias: atoolo_genai.assistant
 
+  atoolo_genai.graphql.type_resolver:
+    class: Atoolo\GenAi\GraphQL\TypeResolver
+    public: true
+
   Atoolo\GenAi\GraphQL\Assistant:
     public: true
     arguments:

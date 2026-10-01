@@ -187,14 +187,31 @@ indexer never carry it.
 
 ### Assistant (`src/Assistant.php`, `src/Service/Assistant/`)
 
-`Assistant::ask(Question): Answer` and `Assistant::feedback(feedbackToken,
-feedback): bool`, implemented by `HttpAssistant`. The answer is structured as
-the application delivers it: an `id`, a `feedbackToken` to give feedback
-with, `sections` - TEXT
-with `html`, LINKS with `links`, each with its `sources` - and an `error` when
-the documents did not answer the question, whose sections are then the hints
-how to ask more precisely. The DTOs and enums in `Dto\Assistant\` mirror the
-public types of the application one to one. The channel is the `searchIndex`
+`Assistant::ask(Question): QuestionResult` and
+`Assistant::feedback(feedbackToken, feedback): bool`, implemented by
+`HttpAssistant`. The result is modelled as the application delivers it,
+"errors as data": `question` returns the union `QuestionResult` and
+`HttpAssistant` maps it by its `__typename`. Every result carries an `id`, a
+`feedbackToken` and the `duration`, because every one is stored and can be
+rated; only an `Answer` is cached by the application.
+
+- `Answer` - the `sections`, an `AnswerTextSection` with `html` or an
+  `AnswerLinksSection` with `links`, each with `headline` and `sources`; a
+  section of another type is skipped. The prefix keeps them apart from
+  `Dto\Indexer\TextSection` and `LinkSection`.
+- `NoDocumentsError` - the search found no chunk similar enough, the model
+  was not asked.
+- `NoMatchingDocumentsError` - the model found none of the chunks to answer
+  the question; the only result with `hints` (text sections) and
+  `suggestedQuestions` (at most three), both possibly empty.
+- `AnswerCutOffError` - the model reached `answer.maxTokens` of the channel;
+  the incomplete answer is discarded.
+- `UnansweredError` - any other or missing `__typename`, with the
+  `typeName` of the application. The application may add errors, so an
+  unknown one is a result, never an exception.
+
+The DTOs in `Dto\Assistant\` mirror the public types of the application one
+to one. The channel is the `searchIndex`
 of the `ResourceChannel`; a question without a language is asked in the one
 of the channel, because the application requires it. Reading the feedback
 back is not public in the application, so it is not offered; a frontend keeps
@@ -212,10 +229,24 @@ who asked: the bundle passes it on, never stores it (no session, cache or
 database) and never puts it into a log, an exception or an error message.
 
 **Through GraphQL, not passed through.** `GraphQL\Assistant` adds
-`genAiQuestion(query!, lang, categoryIds): GenAiAnswer!` and the mutation
-`genAiAnswerFeedback(feedbackToken!, feedback): Boolean!` to the
+`genAiQuestion(query!, lang, categoryIds): GenAiQuestionResult!` and the
+mutation `genAiAnswerFeedback(feedbackToken!, feedback): Boolean!` to the
 atoolo schema; the types are in `config/graphql/types`, prefixed with
-`GenAi`. The request of the caller is never handed on as it is: the client
+`GenAi`. They follow the atoolo convention "errors as data" as well: the
+union `GenAiQuestionResult` of `GenAiAnswer`, `GenAiNoDocumentsError`,
+`GenAiNoMatchingDocumentsError`, `GenAiAnswerCutOffError` and
+`GenAiUnansweredError`, all implementing the interface
+`GenAiAnsweredQuestion { id, feedbackToken, duration }`; the sections
+implement `GenAiAnswerSection { headline, sources }` as `GenAiTextSection`
+and `GenAiLinksSection`. `GenAiUnansweredError` is part of the union so
+that an error the bundle does not know yet still has a type. The types are
+YAML, so overblog cannot map them by their PHP class: the `resolveType` of
+the union and both interfaces calls the public service
+`atoolo_genai.graphql.type_resolver` (`GraphQL\TypeResolver`), which maps
+by `instanceof`. A type only an interface leads to - `GenAiLinksSection`
+is named by no field - would be missing from the schema, so
+`config/graphql.yaml` lists the section types in `definitions.schema.types`,
+which overblog merges with those of the other bundles. The request of the caller is never handed on as it is: the client
 may carry an API key that grants far more than the public fields, and the
 channel is not the caller's choice, so `HttpAssistant` sends fixed
 operations of its own.

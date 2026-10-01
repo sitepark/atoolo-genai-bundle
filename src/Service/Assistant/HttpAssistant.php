@@ -6,13 +6,18 @@ namespace Atoolo\GenAi\Service\Assistant;
 
 use Atoolo\GenAi\Assistant;
 use Atoolo\GenAi\Dto\Assistant\Answer;
-use Atoolo\GenAi\Dto\Assistant\AnswerError;
+use Atoolo\GenAi\Dto\Assistant\AnswerCutOffError;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
 use Atoolo\GenAi\Dto\Assistant\AnswerLink;
+use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSection;
-use Atoolo\GenAi\Dto\Assistant\AnswerSectionType;
 use Atoolo\GenAi\Dto\Assistant\AnswerSource;
+use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
+use Atoolo\GenAi\Dto\Assistant\NoDocumentsError;
+use Atoolo\GenAi\Dto\Assistant\NoMatchingDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
+use Atoolo\GenAi\Dto\Assistant\QuestionResult;
+use Atoolo\GenAi\Dto\Assistant\UnansweredError;
 use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
 use Atoolo\GenAi\Exception\GenAiGraphQlException;
@@ -45,16 +50,20 @@ class HttpAssistant implements Assistant
             channel: $channel
             categoryIds: $categoryIds
           ) {
-            id
-            feedbackToken
-            error
-            sections {
-              type
-              headline
-              html
-              links { url label }
-              sources { url title }
-              questions
+            __typename
+            ... on AnsweredQuestion { id feedbackToken }
+            ... on Answer {
+              sections {
+                __typename
+                headline
+                sources { url title }
+                ... on TextSection { html }
+                ... on LinksSection { links { url label } }
+              }
+            }
+            ... on NoMatchingDocumentsError {
+              hints { headline html sources { url title } }
+              suggestedQuestions
             }
           }
         }
@@ -71,7 +80,7 @@ class HttpAssistant implements Assistant
         private readonly ResourceChannel $resourceChannel,
     ) {}
 
-    public function ask(Question $question): Answer
+    public function ask(Question $question): QuestionResult
     {
         $start = microtime(true);
 
@@ -93,19 +102,48 @@ class HttpAssistant implements Assistant
             );
         }
 
-        $answer = is_array($data['question'] ?? null) ? $data['question'] : [];
+        $result = is_array($data['question'] ?? null)
+            ? $data['question']
+            : [];
+        $id = is_string($result['id'] ?? null) ? $result['id'] : null;
+        $feedbackToken = is_string($result['feedbackToken'] ?? null)
+            ? $result['feedbackToken']
+            : null;
+        $typeName = $this->string($result, '__typename');
+        $duration = round(microtime(true) - $start, 3);
 
-        return new Answer(
-            is_string($answer['id'] ?? null) ? $answer['id'] : null,
-            is_string($answer['feedbackToken'] ?? null)
-                ? $answer['feedbackToken']
-                : null,
-            $this->toSections($answer['sections'] ?? null),
-            is_string($answer['error'] ?? null)
-                ? AnswerError::tryFrom($answer['error'])
-                : null,
-            round(microtime(true) - $start, 3),
-        );
+        return match ($typeName) {
+            'Answer' => new Answer(
+                $id,
+                $feedbackToken,
+                $this->toSections($result['sections'] ?? null),
+                $duration,
+            ),
+            'NoDocumentsError' => new NoDocumentsError(
+                $id,
+                $feedbackToken,
+                $duration,
+            ),
+            'NoMatchingDocumentsError' => new NoMatchingDocumentsError(
+                $id,
+                $feedbackToken,
+                $this->toTextSections($result['hints'] ?? null),
+                $this->toQuestions($result['suggestedQuestions'] ?? null),
+                $duration,
+            ),
+            'AnswerCutOffError' => new AnswerCutOffError(
+                $id,
+                $feedbackToken,
+                $duration,
+            ),
+            // the application may add errors; they are kept, not failed on
+            default => new UnansweredError(
+                $id,
+                $feedbackToken,
+                $typeName,
+                $duration,
+            ),
+        };
     }
 
     /**
@@ -171,6 +209,8 @@ class HttpAssistant implements Assistant
     }
 
     /**
+     * Sections of a type this bundle does not know are skipped.
+     *
      * @return AnswerSection[]
      */
     private function toSections(mixed $sections): array
@@ -181,23 +221,53 @@ class HttpAssistant implements Assistant
 
         $result = [];
         foreach ($sections as $section) {
-            if (!is_array($section) || !is_string($section['type'] ?? null)) {
+            if (!is_array($section)) {
                 continue;
             }
-            $type = AnswerSectionType::tryFrom($section['type']);
-            if ($type === null) {
-                continue;
+            $result[] = match ($section['__typename'] ?? null) {
+                'TextSection' => $this->toTextSection($section),
+                'LinksSection' => new AnswerLinksSection(
+                    $this->string($section, 'headline'),
+                    $this->toLinks($section['links'] ?? null),
+                    $this->toSources($section['sources'] ?? null),
+                ),
+                default => null,
+            };
+        }
+        return array_values(array_filter($result));
+    }
+
+    /**
+     * The hints are text sections by their type, so they carry no
+     * `__typename`.
+     *
+     * @return AnswerTextSection[]
+     */
+    private function toTextSections(mixed $sections): array
+    {
+        if (!is_array($sections)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($sections as $section) {
+            if (is_array($section)) {
+                $result[] = $this->toTextSection($section);
             }
-            $result[] = new AnswerSection(
-                $type,
-                $this->string($section, 'headline'),
-                $this->string($section, 'html'),
-                $this->toLinks($section['links'] ?? null),
-                $this->toSources($section['sources'] ?? null),
-                $this->toQuestions($section['questions'] ?? null),
-            );
         }
         return $result;
+    }
+
+    /**
+     * @param array<mixed> $section
+     */
+    private function toTextSection(array $section): AnswerTextSection
+    {
+        return new AnswerTextSection(
+            $this->string($section, 'headline'),
+            $this->string($section, 'html'),
+            $this->toSources($section['sources'] ?? null),
+        );
     }
 
     /**

@@ -1,0 +1,15 @@
+GenAiAnswerCutOffError:
+  type: object
+  config:
+    description: "The model reached the maximum number of tokens of the channel (answer.maxTokens, finish reason LENGTH or MODEL_LENGTH). The incomplete answer is discarded."
+    interfaces: [GenAiAnsweredQuestion]
+    fields:
+      id:
+        type: ID
+        description: "Id of the stored error; null if it was not stored."
+      feedbackToken:
+        type: String
+        description: "Token to give feedback on the error with genAiAnswerFeedback, valid for 15 minutes by default; null if it cannot be rated."
+      duration:
+        type: Float!
+        description: "Runtime of the request in seconds."

@@ -1,0 +1,15 @@
+GenAiAnsweredQuestion:
+  type: interface
+  config:
+    description: "What every result of a question carries. Every result is stored and can be rated, an error as well as an answer; only an answer is cached."
+    fields:
+      id:
+        type: ID
+        description: "Id of the result; null if it was not stored."
+      feedbackToken:
+        type: String
+        description: "Token to give feedback on the result with genAiAnswerFeedback, valid for 15 minutes by default; null if it cannot be rated."
+      duration:
+        type: Float!
+        description: "Runtime of the request in seconds."
+    resolveType: "@=service('atoolo_genai.graphql.type_resolver').resolveType(value)"

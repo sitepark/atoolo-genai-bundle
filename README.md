@@ -26,13 +26,36 @@ GraphQL schema:
 ```graphql
 query {
   genAiQuestion(query: "Wann hat das Bürgerbüro geöffnet?") {
-    id
-    feedbackToken
-    error
-    sections { type headline html links { url label } sources { url title } }
+    __typename
+    ... on GenAiAnsweredQuestion { id feedbackToken }
+    ... on GenAiAnswer {
+      sections {
+        __typename
+        headline
+        sources { url title }
+        ... on GenAiTextSection { html }
+        ... on GenAiLinksSection { links { url label } }
+      }
+    }
+    ... on GenAiNoMatchingDocumentsError {
+      hints { headline html sources { url title } }
+      suggestedQuestions
+    }
   }
 }
 ```
+
+The result is a `GenAiAnswer` or an error that says why the question was not
+answered: `GenAiNoDocumentsError` (no resource was similar enough),
+`GenAiNoMatchingDocumentsError` (none of the resources found answers the
+question; with hints how to ask more precisely and suggested questions),
+`GenAiAnswerCutOffError` (the answer became too long and was discarded) or
+`GenAiUnansweredError` (an error of the GenAI application this version of the
+bundle does not know yet). Every result can be rated with its
+`feedbackToken`. A question that cannot be asked at all - too long, too many
+requests, the application not available - is a GraphQL error in `errors`
+with `extensions.classification` `BAD_REQUEST`, `TOO_MANY_REQUESTS` or
+`INTERNAL_ERROR`.
 
 ```graphql
 mutation {

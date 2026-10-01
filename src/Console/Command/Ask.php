@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace Atoolo\GenAi\Console\Command;
 
 use Atoolo\GenAi\Assistant;
+use Atoolo\GenAi\Dto\Assistant\Answer;
+use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSection;
+use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
+use Atoolo\GenAi\Dto\Assistant\NoMatchingDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
+use Atoolo\GenAi\Dto\Assistant\QuestionResult;
+use Atoolo\GenAi\Dto\Assistant\UnansweredError;
 use Atoolo\Index\Console\Command\Io\TypifiedInput;
 use Atoolo\Resource\ResourceChannel;
 use Atoolo\Resource\ResourceLanguage;
@@ -69,26 +75,44 @@ class Ask extends Command
         /** @var string[] $categoryIds */
         $categoryIds = $input->getOption('category');
 
-        $answer = $this->assistant->ask(new Question(
+        $result = $this->assistant->ask(new Question(
             $typedInput->getStringArgument('question'),
             ResourceLanguage::of($typedInput->getStringOption('lang')),
             $categoryIds,
         ));
 
-        if ($answer->error !== null) {
-            $io->warning('Not answered: ' . $answer->error->name);
+        if ($result instanceof Answer) {
+            foreach ($result->sections as $section) {
+                $this->printSection($io, $section);
+            }
+        } else {
+            $io->warning('Not answered: ' . $this->typeName($result));
         }
 
-        foreach ($answer->sections as $section) {
-            $this->printSection($io, $section);
+        if ($result instanceof NoMatchingDocumentsError) {
+            foreach ($result->hints as $hint) {
+                $this->printSection($io, $hint);
+            }
+            if (!empty($result->suggestedQuestions)) {
+                $io->text('Did you mean:');
+                $io->listing($result->suggestedQuestions);
+            }
         }
 
-        if ($answer->id !== null) {
-            $io->text('answer id: ' . $answer->id);
+        if ($result->id !== null) {
+            $io->text('answer id: ' . $result->id);
         }
-        $io->text(sprintf('time: %.3fs', $answer->duration));
+        $io->text(sprintf('time: %.3fs', $result->duration));
 
         return Command::SUCCESS;
+    }
+
+    private function typeName(QuestionResult $result): string
+    {
+        if ($result instanceof UnansweredError && $result->typeName !== '') {
+            return $result->typeName;
+        }
+        return (new \ReflectionClass($result))->getShortName();
     }
 
     private function printSection(
@@ -98,25 +122,20 @@ class Ask extends Command
         $io->section(
             $section->headline !== ''
                 ? $section->headline
-                : $section->type->name,
+                : (new \ReflectionClass($section))->getShortName(),
         );
 
-        if ($section->html !== '') {
+        if ($section instanceof AnswerTextSection && $section->html !== '') {
             $io->text(trim(strip_tags($section->html)));
         }
 
-        if (!empty($section->links)) {
+        if ($section instanceof AnswerLinksSection && !empty($section->links)) {
             $io->listing(array_map(
                 static fn($link) => $link->label !== ''
                     ? $link->label . ': ' . $link->url
                     : $link->url,
                 $section->links,
             ));
-        }
-
-        if (!empty($section->questions)) {
-            $io->text('Did you mean:');
-            $io->listing($section->questions);
         }
 
         if (!empty($section->sources)) {

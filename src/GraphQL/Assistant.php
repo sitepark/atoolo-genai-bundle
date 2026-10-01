@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Atoolo\GenAi\GraphQL;
 
 use Atoolo\GenAi\Assistant as GenAiAssistant;
-use Atoolo\GenAi\Dto\Assistant\Answer;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
 use Atoolo\GenAi\Dto\Assistant\Question;
+use Atoolo\GenAi\Dto\Assistant\QuestionResult;
 use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
 use Atoolo\Resource\ResourceLanguage;
@@ -37,10 +37,11 @@ class Assistant
     /**
      * @param string[]|null $categoryIds
      */
-    #[GQL\Query(name: 'genAiQuestion', type: 'GenAiAnswer!')]
+    #[GQL\Query(name: 'genAiQuestion', type: 'GenAiQuestionResult!')]
     #[GQL\Description(
         'Answers a question using the resources indexed in the GenAI '
-        . 'application.',
+        . 'application: a GenAiAnswer, or an error that says why the '
+        . 'question was not answered.',
     )]
     #[GQL\Arg(name: 'query', type: 'String!', description: 'The question.')]
     #[GQL\Arg(
@@ -60,7 +61,7 @@ class Assistant
         string $query,
         ?string $lang = null,
         ?array $categoryIds = null,
-    ): Answer {
+    ): QuestionResult {
         try {
             return $this->assistant->ask(new Question(
                 $query,

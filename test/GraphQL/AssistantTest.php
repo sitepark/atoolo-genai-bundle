@@ -7,6 +7,7 @@ namespace Atoolo\GenAi\Test\GraphQL;
 use Atoolo\GenAi\Assistant as GenAiAssistant;
 use Atoolo\GenAi\Dto\Assistant\Answer;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
+use Atoolo\GenAi\Dto\Assistant\NoDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
@@ -36,6 +37,19 @@ class AssistantTest extends TestCase
             $answer,
             (new Assistant($genAiAssistant))->question('why?', 'en_US', ['10']),
             'the answer of the assistant should be returned',
+        );
+    }
+
+    public function testQuestionPassesOnAnError(): void
+    {
+        $error = new NoDocumentsError('a-1', 't-1');
+        $genAiAssistant = $this->createStub(GenAiAssistant::class);
+        $genAiAssistant->method('ask')->willReturn($error);
+
+        $this->assertSame(
+            $error,
+            (new Assistant($genAiAssistant))->question('why?'),
+            'an unanswered question is a result, not a GraphQL error',
         );
     }
 

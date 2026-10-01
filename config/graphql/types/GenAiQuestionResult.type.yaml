@@ -1,0 +1,11 @@
+GenAiQuestionResult:
+  type: union
+  config:
+    description: "The result of a question: an answer, or an error that says why the question was not answered. Further errors of the GenAI application are a GenAiUnansweredError."
+    types:
+      - GenAiAnswer
+      - GenAiNoDocumentsError
+      - GenAiNoMatchingDocumentsError
+      - GenAiAnswerCutOffError
+      - GenAiUnansweredError
+    resolveType: "@=service('atoolo_genai.graphql.type_resolver').resolveType(value)"

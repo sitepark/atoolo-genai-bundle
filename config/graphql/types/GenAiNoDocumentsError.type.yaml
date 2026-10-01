@@ -1,0 +1,15 @@
+GenAiNoDocumentsError:
+  type: object
+  config:
+    description: "The search found no chunk in the channel, restricted to the categoryIds. The similarity search found none with a similarity of at least answer.similarityThreshold, and the full text search found none with words of the question and a similarity of at least answer.fullTextSimilarityThreshold, if the channel uses it (answer.fullTextTopK > 0). The model was not asked."
+    interfaces: [GenAiAnsweredQuestion]
+    fields:
+      id:
+        type: ID
+        description: "Id of the stored error; null if it was not stored."
+      feedbackToken:
+        type: String
+        description: "Token to give feedback on the error with genAiAnswerFeedback, valid for 15 minutes by default; null if it cannot be rated."
+      duration:
+        type: Float!
+        description: "Runtime of the request in seconds."

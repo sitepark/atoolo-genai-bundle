@@ -2,6 +2,7 @@ GenAiAnswer:
   type: object
   config:
     description: "The answer of the GenAI application to a question."
+    interfaces: [GenAiAnsweredQuestion]
     fields:
       id:
         type: ID
@@ -11,10 +12,7 @@ GenAiAnswer:
         description: "Token to give feedback on the answer with genAiAnswerFeedback, valid for 15 minutes by default; null if the answer cannot be rated."
       sections:
         type: "[GenAiAnswerSection!]!"
-        description: "The parts of the answer; with an error the hints how to ask more precisely, possibly none."
-      error:
-        type: GenAiAnswerError
-        description: "Why the resources did not answer the question, null if they did."
+        description: "The parts of the answer."
       duration:
         type: Float!
         description: "Runtime of the request in seconds."

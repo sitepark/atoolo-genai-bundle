@@ -1,0 +1,21 @@
+GenAiNoMatchingDocumentsError:
+  type: object
+  config:
+    description: "The model was given chunks as context, but according to the model none of them answers the question. It returns hints and suggested questions, both possibly empty."
+    interfaces: [GenAiAnsweredQuestion]
+    fields:
+      id:
+        type: ID
+        description: "Id of the stored error; null if it was not stored."
+      feedbackToken:
+        type: String
+        description: "Token to give feedback on the error with genAiAnswerFeedback, valid for 15 minutes by default; null if it cannot be rated."
+      duration:
+        type: Float!
+        description: "Runtime of the request in seconds."
+      hints:
+        type: "[GenAiTextSection!]!"
+        description: "How to ask more precisely, possibly none."
+      suggestedQuestions:
+        type: "[String!]!"
+        description: "Questions the user probably meant, at most three, to be offered for asking with one click."

@@ -1,5 +1,11 @@
 overblog_graphql:
   definitions:
+    schema:
+      query: RootQuery
+      mutation: RootMutation
+      # implementations of GenAiAnswerSection that no field names; without
+      # them here they would be missing from the schema
+      types: [GenAiTextSection, GenAiLinksSection]
     mappings:
       types:
         - type: attribute

@@ -1,4 +1,0 @@
-GenAiAnswerError:
-  type: enum
-  config:
-    enumClass: Atoolo\GenAi\Dto\Assistant\AnswerError
