@@ -11,8 +11,8 @@
     ],
     "require": {
         "php": ">=8.1 <8.6.0",
-        "atoolo/index-bundle": "dev-main",
-        "atoolo/resource-bundle": "^1",
+        "atoolo/index-bundle": "dev-feature/id-based-resource-location",
+        "atoolo/resource-bundle": "dev-feature/id-based-resource-location",
         "overblog/graphql-bundle": "^1.9",
         "psr/log": "^3",
         "symfony/config": "^6.3 || ^7.4.7",
