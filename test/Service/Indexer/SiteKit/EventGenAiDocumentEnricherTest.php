@@ -462,6 +462,7 @@ class EventGenAiDocumentEnricherTest extends TestCase
     ): Resource {
         return new Resource(
             '/veranstaltung.php',
+            '/veranstaltung.php',
             '123',
             'veranstaltung',
             $objectType,

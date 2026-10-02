@@ -120,6 +120,7 @@ class GenAiDumpTest extends TestCase
         $loader = $this->createStub(ResourceLoader::class);
         $loader->method('load')->willReturn(new Resource(
             '/a/b.php',
+            '/a/b.php',
             '123',
             'b',
             'content',

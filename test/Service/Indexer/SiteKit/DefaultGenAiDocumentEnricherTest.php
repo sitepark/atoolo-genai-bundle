@@ -1235,6 +1235,7 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
     {
         return new Resource(
             is_string($data['url'] ?? null) ? $data['url'] : '',
+            is_string($data['url'] ?? null) ? $data['url'] : '',
             is_string($data['id'] ?? null) ? $data['id'] : '123',
             is_string($data['name'] ?? null) ? $data['name'] : '',
             is_string($data['objectType'] ?? null) ? $data['objectType'] : '',
