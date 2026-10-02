@@ -83,6 +83,37 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testAMediumInAMediaContainerGetsACompositeId(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'id' => '123',
+            'media' => true,
+            'mediaContainer' => ['id' => 456],
+        ]));
+
+        $this->assertEquals('456-123', $doc->id, 'unexpected id');
+    }
+
+    public function testAMediumWithoutAMediaContainerKeepsItsId(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'id' => '123',
+            'media' => true,
+        ]));
+
+        $this->assertEquals('123', $doc->id, 'unexpected id');
+    }
+
+    public function testAnArticleIgnoresTheMediaContainer(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'id' => '123',
+            'mediaContainer' => ['id' => 456],
+        ]));
+
+        $this->assertEquals('123', $doc->id, 'unexpected id');
+    }
+
     public function testKeywordsAndBoostKeywords(): void
     {
         $doc = $this->enrichWithData([

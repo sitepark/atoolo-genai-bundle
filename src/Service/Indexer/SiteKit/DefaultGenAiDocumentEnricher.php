@@ -100,6 +100,12 @@ class DefaultGenAiDocumentEnricher implements
         $base = new DataBag($data->getAssociativeArray('base'));
 
         $document->id = $resource->id;
+        if ($data->getBool('media') === true) {
+            $mediaContainerId = $data->getInt('mediaContainer.id');
+            if ($mediaContainerId !== 0) {
+                $document->id = $mediaContainerId . '-' . $resource->id;
+            }
+        }
         $document->source = $this->source;
         $document->objectType = $resource->objectType;
         $document->title = $base->getString('title');
