@@ -133,7 +133,7 @@ class ContainerTest extends TestCase
     public function testConnectionUrlFallsBackToLocalhost(): void
     {
         $this->assertEquals(
-            'http://localhost:8080',
+            'http://localhost:8385',
             $this->resolveConnectionUrl([]),
             'without any environment the local application should be used',
         );
@@ -156,7 +156,7 @@ class ContainerTest extends TestCase
     public function testConnectionUrlWithHostOnly(): void
     {
         $this->assertEquals(
-            'http://genai.example.com:8080',
+            'http://genai.example.com:8385',
             $this->resolveConnectionUrl(['GENAI_HOST' => 'genai.example.com']),
             'a part that is not set should keep its default',
         );
