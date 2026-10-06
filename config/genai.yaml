@@ -1,7 +1,7 @@
 parameters:
   atoolo_genai.connection.scheme.default: 'http'
   atoolo_genai.connection.host.default: 'localhost'
-  atoolo_genai.connection.port.default: '8080'
+  atoolo_genai.connection.port.default: '8385'
   atoolo_genai.connection.path.default: ''
   atoolo_genai.connection.api_key.default: ''
   # the application answers a bulk only once it has embedded every document

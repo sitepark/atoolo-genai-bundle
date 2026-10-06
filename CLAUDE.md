@@ -282,13 +282,13 @@ connection, so that each one can be set on its own:
 |---|---|
 | `GENAI_SCHEME` | `http` |
 | `GENAI_HOST` | `localhost` |
-| `GENAI_PORT` | `8080` |
+| `GENAI_PORT` | `8385` |
 | `GENAI_PATH` | *(empty)* |
 | `GENAI_API_KEY` | *(empty, no key is sent)* |
 | `GENAI_IDLE_TIMEOUT` | `300` |
 | `GENAI_BUSY_RETRIES` | `15,30,60` *(seconds between the attempts of an index request refused with 409, empty disables)* |
 
-Without any of them the bundle talks to `http://localhost:8080`.
+Without any of them the bundle talks to `http://localhost:8385`.
 `GENAI_IDLE_TIMEOUT` is the seconds the client waits for the next byte of an
 answer - the `timeout` of the Symfony http client, not the duration of a
 request. The application answers a bulk only once it has embedded every
