@@ -336,18 +336,30 @@ class DefaultGenAiDocumentEnricher implements
      * Walks the content tree and turns every block that carries text or
      * links into a section, in the order the editor arranged them. The walk
      * is recursive because a block may hold further blocks, as a multi column
-     * layout does.
+     * layout does. A section block, an accordion for instance, carries no
+     * text but a headline; the sections are flat, so its headline is put in
+     * front of the headlines of the blocks it holds.
      *
      * @param array<mixed,mixed> $node
      * @param ContentSection[] $sections
      */
-    private function collectSections(array $node, array &$sections): void
-    {
+    private function collectSections(
+        array $node,
+        array &$sections,
+        string $context = '',
+    ): void {
         $model = $node['model'] ?? null;
         if (is_array($model)) {
-            $section = $this->toSection($model);
-            if ($section !== null) {
-                $sections[] = $section;
+            if (($model['modelType'] ?? null) === 'content.section') {
+                $context = $this->joinHeadlines(
+                    $context,
+                    $this->headline($model),
+                );
+            } else {
+                $section = $this->toSection($model, $context);
+                if ($section !== null) {
+                    $sections[] = $section;
+                }
             }
         }
 
@@ -357,7 +369,7 @@ class DefaultGenAiDocumentEnricher implements
         }
         foreach ($items as $item) {
             if (is_array($item)) {
-                $this->collectSections($item, $sections);
+                $this->collectSections($item, $sections, $context);
             }
         }
     }
@@ -365,11 +377,30 @@ class DefaultGenAiDocumentEnricher implements
     /**
      * @param array<mixed,mixed> $model
      */
-    private function toSection(array $model): ?ContentSection
+    private function headline(array $model): string
     {
-        $headline = is_string($model['headline'] ?? null)
-            ? $model['headline']
+        return is_string($model['headline'] ?? null)
+            ? trim($model['headline'])
             : '';
+    }
+
+    private function joinHeadlines(string $context, string $headline): string
+    {
+        if ($context === '') {
+            return $headline;
+        }
+        if ($headline === '') {
+            return $context;
+        }
+        return $context . ' › ' . $headline;
+    }
+
+    /**
+     * @param array<mixed,mixed> $model
+     */
+    private function toSection(array $model, string $context): ?ContentSection
+    {
+        $headline = $this->joinHeadlines($context, $this->headline($model));
 
         $richText = $model['richText'] ?? null;
         if (

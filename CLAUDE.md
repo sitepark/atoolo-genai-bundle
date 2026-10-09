@@ -81,7 +81,10 @@ assistant.
   document. Unlike the Solr enricher it does not flatten the resource into one
   string: it walks the content tree and turns every block that carries text or
   links into a section, keeping the editor's HTML, because the application
-  converts that markup block by block and chunks along it. The contact point
+  converts that markup block by block and chunks along it. A
+  `content.section` block (an accordion) carries no text, only a headline;
+  as the sections are flat, its headline leads those of the blocks it holds
+  ("Ausbildung", "Ausbildung › Voraussetzungen"). The contact point
   is not part of that tree but answers the questions people ask most, so it
   becomes a section of its own - its facts in one list, which the application
   treats as a single block and therefore never tears apart. The opening
