@@ -48,14 +48,18 @@ class DefaultGenAiDocumentEnricher implements
 
     /**
      * @param list<string> $datedObjectTypes the object types whose date is
-     *     relevant, e.g. news; the other resources are sent without a date,
-     *     so that their age does not lower their rank
+     *     relevant, e.g. news and media; the other resources are sent without
+     *     a date, so that their age does not lower their rank
      */
     public function __construct(
         private readonly SiteKitNavigationHierarchyLoader $navigationLoader,
         private readonly ResourceChannel $resourceChannel,
         private readonly string $source = 'internal',
-        private readonly array $datedObjectTypes = ['news'],
+        private readonly array $datedObjectTypes = [
+            'news',
+            'media',
+            'embedded-media',
+        ],
     ) {
         $this->contactPointSections = new ContactPointSections();
     }
