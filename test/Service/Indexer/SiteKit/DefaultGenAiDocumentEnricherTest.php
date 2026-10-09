@@ -704,6 +704,40 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testSectionHeadlineIsPutInFrontOfItsBlocks(): void
+    {
+        $doc = $this->enrichWithData([
+            'content' => $this->contentWith([
+                $this->sectionBlock('Ausbildung', [
+                    $this->textBlock('', '<p>1</p>'),
+                    $this->textBlock('Voraussetzungen', '<p>2</p>'),
+                    $this->sectionBlock('Ablauf', [
+                        $this->textBlock('Prüfung', '<p>3</p>'),
+                    ]),
+                ]),
+                $this->sectionBlock('', [
+                    $this->textBlock('Kosten', '<p>4</p>'),
+                ]),
+                $this->textBlock('Danach', '<p>5</p>'),
+            ]),
+        ]);
+
+        $this->assertEquals(
+            [
+                'Ausbildung',
+                'Ausbildung › Voraussetzungen',
+                'Ausbildung › Ablauf › Prüfung',
+                'Kosten',
+                'Danach',
+            ],
+            array_map(
+                static fn($section): string => $section->headline,
+                $doc->content,
+            ),
+            'the headline of a section should lead those of its blocks',
+        );
+    }
+
     public function testSearchIndexDataLeadsTheContent(): void
     {
         $doc = $this->enrichWithData([
@@ -1204,6 +1238,25 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
                     'text' => $html,
                 ],
             ],
+        ];
+    }
+
+    /**
+     * @param list<array<string,mixed>> $blocks
+     * @return array<string,mixed>
+     */
+    private function sectionBlock(string $headline, array $blocks): array
+    {
+        return [
+            'type' => 'section',
+            'model' => [
+                'modelType' => 'content.section',
+                'headline' => $headline,
+                'inToc' => false,
+                'collapsible' => true,
+                'collapsed' => true,
+            ],
+            'items' => $blocks,
         ];
     }
 
