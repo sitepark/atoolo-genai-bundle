@@ -20,7 +20,7 @@ parameters:
   atoolo_genai.connection.busy_retries: '%env(csv:default:atoolo_genai.connection.busy_retries.default:GENAI_BUSY_RETRIES)%'
   # the object types whose date is relevant, comma separated; the other
   # documents are sent without a date, so that their age does not matter
-  atoolo_genai.indexer.dated_object_types.default: 'news'
+  atoolo_genai.indexer.dated_object_types.default: 'news,media,embedded-media'
   atoolo_genai.indexer.dated_object_types: '%env(csv:default:atoolo_genai.indexer.dated_object_types.default:GENAI_DATED_OBJECT_TYPES)%'
 
 services:

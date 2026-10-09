@@ -18,6 +18,7 @@ use Atoolo\Resource\ResourceLanguage;
 use Atoolo\Resource\ResourceLocation;
 use Atoolo\Resource\ResourceTenant;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -172,6 +173,23 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         $this->assertNull(
             $doc->date,
             'the date of a type whose age says nothing should be left out',
+        );
+    }
+
+    #[TestWith(['media'])]
+    #[TestWith(['embedded-media'])]
+    public function testMediaAreDated(string $objectType): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'objectType' => $objectType,
+            'media' => true,
+            'base' => ['date' => 1707549836],
+        ]));
+
+        $this->assertEquals(
+            '2024-02-10',
+            $doc->date?->format('Y-m-d'),
+            'a medium should keep its date',
         );
     }
 
