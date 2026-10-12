@@ -13,6 +13,7 @@ use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSource;
 use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
+use Atoolo\GenAi\Dto\Assistant\Filter\QuestionFilter;
 use Atoolo\GenAi\Dto\Assistant\NoDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\NoMatchingDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
@@ -25,6 +26,7 @@ use Atoolo\GenAi\Exception\GenAiRequestException;
 use Atoolo\GenAi\Service\GenAiHttpClient;
 use Atoolo\Resource\ResourceChannel;
 use Atoolo\Resource\ResourceLanguage;
+use InvalidArgumentException;
 
 /**
  * Asks the GenAI application a question and passes on the feedback on an
@@ -44,6 +46,7 @@ class HttpAssistant implements Assistant
           $channel: String!
           $categoryIds: [String!]
           $archive: Boolean
+          $filter: [QuestionFilter!]
         ) {
           question(
             query: $query
@@ -51,6 +54,7 @@ class HttpAssistant implements Assistant
             channel: $channel
             categoryIds: $categoryIds
             archive: $archive
+            filter: $filter
           ) {
             __typename
             ... on AnsweredQuestion { id feedbackToken }
@@ -77,10 +81,36 @@ class HttpAssistant implements Assistant
         }
         GRAPHQL;
 
+    /**
+     * The filter of a question that brings none.
+     *
+     * @var QuestionFilter[]
+     */
+    private readonly array $defaultFilter;
+
+    /**
+     * @param array<mixed> $defaultFilter the filter of a question that
+     *   brings none, as the configuration holds it: a list of conditions
+     *   in the form of the GraphQL variable
+     * @throws InvalidArgumentException if the default filter is invalid
+     */
     public function __construct(
         private readonly GenAiHttpClient $client,
         private readonly ResourceChannel $resourceChannel,
-    ) {}
+        array $defaultFilter = [],
+    ) {
+        try {
+            $this->defaultFilter = QuestionFilter::fromArrays($defaultFilter);
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException(
+                'Invalid default filter of the GenAI assistant '
+                . '(atoolo_genai.assistant.default_filter): '
+                . $e->getMessage(),
+                0,
+                $e,
+            );
+        }
+    }
 
     public function ask(Question $question): QuestionResult
     {
@@ -96,6 +126,10 @@ class HttpAssistant implements Assistant
         }
         if ($question->archive) {
             $variables['archive'] = true;
+        }
+        $filter = $question->filter ?? $this->defaultFilter;
+        if (!empty($filter)) {
+            $variables['filter'] = QuestionFilter::toVariables($filter);
         }
 
         try {

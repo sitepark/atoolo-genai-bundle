@@ -22,6 +22,11 @@ parameters:
   # documents are sent without a date, so that their age does not matter
   atoolo_genai.indexer.dated_object_types.default: 'news,media,embedded-media'
   atoolo_genai.indexer.dated_object_types: '%env(csv:default:atoolo_genai.indexer.dated_object_types.default:GENAI_DATED_OBJECT_TYPES)%'
+  # the filter of a question that brings none, as JSON in the form of the
+  # GraphQL argument filter, e.g. [{"not":{"objectTypes":["news"]}}];
+  # a question with a filter of its own replaces it
+  atoolo_genai.assistant.default_filter.default: '[]'
+  atoolo_genai.assistant.default_filter: '%env(json:default:atoolo_genai.assistant.default_filter.default:GENAI_DEFAULT_FILTER)%'
 
 services:
 
@@ -54,6 +59,7 @@ services:
     arguments:
       - '@atoolo_genai.client'
       - '@atoolo_resource.resource_channel'
+      - '%atoolo_genai.assistant.default_filter%'
 
   Atoolo\GenAi\Assistant:
     alias: atoolo_genai.assistant

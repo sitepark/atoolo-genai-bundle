@@ -9,6 +9,10 @@ use Atoolo\GenAi\Dto\Assistant\AnswerCutOffError;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
 use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
+use Atoolo\GenAi\Dto\Assistant\Filter\CategoryFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\NotFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\ObjectTypeFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\OrFilter;
 use Atoolo\GenAi\Dto\Assistant\NoDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\NoMatchingDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
@@ -22,6 +26,7 @@ use Atoolo\Resource\DataBag;
 use Atoolo\Resource\ResourceChannel;
 use Atoolo\Resource\ResourceLanguage;
 use Atoolo\Resource\ResourceTenant;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -259,6 +264,92 @@ class HttpAssistantTest extends TestCase
             ],
             $this->variables(),
             'unexpected variables',
+        );
+    }
+
+    public function testAskSendsTheFilter(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+
+        $assistant->ask(new Question('why?', filter: [
+            new NotFilter(new ObjectTypeFilter(['news'])),
+            new OrFilter([
+                new CategoryFilter(['3']),
+                new ObjectTypeFilter(['media']),
+            ]),
+        ]));
+
+        $this->assertEquals(
+            [
+                ['not' => ['objectTypes' => ['news']]],
+                ['or' => [
+                    ['categoryIds' => ['3']],
+                    ['objectTypes' => ['media']],
+                ]],
+            ],
+            $this->variables()['filter'] ?? null,
+            'the filter should be sent as the application expects it',
+        );
+    }
+
+    public function testAskWithoutFilterSendsTheDefaultFilter(): void
+    {
+        $assistant = $this->createAssistant(
+            '{"data":{"question":{}}}',
+            defaultFilter: [['not' => ['objectTypes' => ['news', 'notice']]]],
+        );
+
+        $assistant->ask(new Question('why?'));
+
+        $this->assertEquals(
+            [['not' => ['objectTypes' => ['news', 'notice']]]],
+            $this->variables()['filter'] ?? null,
+            'a question without filter should get the default filter',
+        );
+    }
+
+    public function testAFilterOfTheQuestionReplacesTheDefault(): void
+    {
+        $assistant = $this->createAssistant(
+            '{"data":{"question":{}}}',
+            defaultFilter: [['not' => ['objectTypes' => ['news']]]],
+        );
+
+        $assistant->ask(new Question('why?', filter: [
+            new CategoryFilter(['3']),
+        ]));
+
+        $this->assertEquals(
+            [['categoryIds' => ['3']]],
+            $this->variables()['filter'] ?? null,
+            'any filter of the question should replace the default filter',
+        );
+    }
+
+    public function testAnEmptyFilterAsksWithoutTheDefault(): void
+    {
+        $assistant = $this->createAssistant(
+            '{"data":{"question":{}}}',
+            defaultFilter: [['not' => ['objectTypes' => ['news']]]],
+        );
+
+        $assistant->ask(new Question('why?', filter: []));
+
+        $this->assertArrayNotHasKey(
+            'filter',
+            $this->variables(),
+            'an empty filter should ask without any filter',
+        );
+    }
+
+    public function testInvalidDefaultFilter(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('atoolo_genai.assistant.default_filter');
+
+        $this->createAssistant(
+            '{"data":{"question":{}}}',
+            defaultFilter: [['objectTypes' => ['news'], 'not' => []]],
         );
     }
 
@@ -584,9 +675,13 @@ class HttpAssistantTest extends TestCase
         return $body['variables'];
     }
 
+    /**
+     * @param array<mixed> $defaultFilter
+     */
     private function createAssistant(
         string $body,
         int $statusCode = 200,
+        array $defaultFilter = [],
     ): HttpAssistant {
         $requests = &$this->requests;
         $httpClient = new MockHttpClient(
@@ -622,6 +717,7 @@ class HttpAssistantTest extends TestCase
                 new DataBag([]),
                 $this->createMock(ResourceTenant::class),
             ),
+            $defaultFilter,
         );
     }
 }

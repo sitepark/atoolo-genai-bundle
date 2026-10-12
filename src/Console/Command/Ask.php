@@ -9,6 +9,9 @@ use Atoolo\GenAi\Dto\Assistant\Answer;
 use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
+use Atoolo\GenAi\Dto\Assistant\Filter\NotFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\ObjectTypeFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\QuestionFilter;
 use Atoolo\GenAi\Dto\Assistant\NoMatchingDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\GenAi\Dto\Assistant\QuestionResult;
@@ -66,6 +69,26 @@ class Ask extends Command
                 InputOption::VALUE_NONE,
                 'Let archived documents answer the question as well',
             )
+            ->addOption(
+                'object-type',
+                null,
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'Object type the retrieved documents are restricted to, may '
+                . 'be given several times; replaces the default filter',
+            )
+            ->addOption(
+                'exclude-object-type',
+                null,
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'Object type the retrieved documents must not have, may be '
+                . 'given several times; replaces the default filter',
+            )
+            ->addOption(
+                'no-default-filter',
+                null,
+                InputOption::VALUE_NONE,
+                'Ask without the default filter of the project',
+            )
         ;
     }
 
@@ -86,6 +109,7 @@ class Ask extends Command
             ResourceLanguage::of($typedInput->getStringOption('lang')),
             $categoryIds,
             (bool) $input->getOption('archive'),
+            $this->filter($input),
         ));
 
         if ($result instanceof Answer) {
@@ -112,6 +136,31 @@ class Ask extends Command
         $io->text(sprintf('time: %.3fs', $result->duration));
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * The filter of the options, null for the default filter.
+     *
+     * @return ?QuestionFilter[]
+     */
+    private function filter(InputInterface $input): ?array
+    {
+        /** @var string[] $objectTypes */
+        $objectTypes = $input->getOption('object-type');
+        /** @var string[] $excluded */
+        $excluded = $input->getOption('exclude-object-type');
+
+        $filter = [];
+        if (!empty($objectTypes)) {
+            $filter[] = new ObjectTypeFilter($objectTypes);
+        }
+        if (!empty($excluded)) {
+            $filter[] = new NotFilter(new ObjectTypeFilter($excluded));
+        }
+        if (empty($filter) && !$input->getOption('no-default-filter')) {
+            return null;
+        }
+        return $filter;
     }
 
     private function typeName(QuestionResult $result): string
