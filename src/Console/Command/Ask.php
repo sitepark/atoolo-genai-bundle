@@ -60,6 +60,12 @@ class Ask extends Command
                 'Category id the retrieved documents are restricted to, '
                 . 'may be given several times',
             )
+            ->addOption(
+                'archive',
+                null,
+                InputOption::VALUE_NONE,
+                'Let archived documents answer the question as well',
+            )
         ;
     }
 
@@ -79,6 +85,7 @@ class Ask extends Command
             $typedInput->getStringArgument('question'),
             ResourceLanguage::of($typedInput->getStringOption('lang')),
             $categoryIds,
+            (bool) $input->getOption('archive'),
         ));
 
         if ($result instanceof Answer) {

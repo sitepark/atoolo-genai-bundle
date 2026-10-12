@@ -180,6 +180,23 @@ class AskTest extends TestCase
             $this->askedQuestion?->categoryIds,
             'the category options should reach the assistant',
         );
+        $this->assertFalse(
+            $this->askedQuestion?->archive,
+            'without the option the archive should be left out',
+        );
+    }
+
+    public function testExecuteWithArchive(): void
+    {
+        $tester = $this->createTester(new Answer());
+
+        $tester->execute(['question' => 'why?', '--archive' => true]);
+        $tester->assertCommandIsSuccessful();
+
+        $this->assertTrue(
+            $this->askedQuestion?->archive,
+            'the archive option should reach the assistant',
+        );
     }
 
     private function createTester(QuestionResult $answer): CommandTester

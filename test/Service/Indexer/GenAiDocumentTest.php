@@ -43,6 +43,31 @@ class GenAiDocumentTest extends TestCase
         $this->assertEquals('123', $data['id'], 'unexpected id');
     }
 
+    public function testArchiveIsOnlySentWhenSet(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->id = '123';
+        $unarchivedHash = $doc->contentHash();
+
+        $this->assertArrayNotHasKey(
+            'archive',
+            $doc->jsonSerialize(),
+            'a document that is not archived should not carry the flag',
+        );
+
+        $doc->archive = true;
+
+        $this->assertTrue(
+            $doc->jsonSerialize()['archive'],
+            'an archived document should carry the flag',
+        );
+        $this->assertNotEquals(
+            $unarchivedHash,
+            $doc->contentHash(),
+            'archiving a document should change its hash',
+        );
+    }
+
     public function testChannelIsSent(): void
     {
         $doc = new GenAiDocument();

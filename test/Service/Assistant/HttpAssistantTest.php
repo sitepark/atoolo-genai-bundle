@@ -236,6 +236,7 @@ class HttpAssistantTest extends TestCase
             'why?',
             ResourceLanguage::of('en_US'),
             ['10'],
+            true,
         ));
 
         $this->assertEquals(
@@ -254,6 +255,7 @@ class HttpAssistantTest extends TestCase
                 'language' => 'en',
                 'channel' => 'www',
                 'categoryIds' => ['10'],
+                'archive' => true,
             ],
             $this->variables(),
             'unexpected variables',
@@ -270,7 +272,7 @@ class HttpAssistantTest extends TestCase
             ['query' => 'why?', 'language' => 'de', 'channel' => 'www'],
             $this->variables(),
             'without a language the one of the channel should be sent, '
-            . 'without categories none',
+            . 'without categories and archive none',
         );
     }
 

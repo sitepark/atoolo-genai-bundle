@@ -43,12 +43,14 @@ class HttpAssistant implements Assistant
           $language: String!
           $channel: String!
           $categoryIds: [String!]
+          $archive: Boolean
         ) {
           question(
             query: $query
             language: $language
             channel: $channel
             categoryIds: $categoryIds
+            archive: $archive
           ) {
             __typename
             ... on AnsweredQuestion { id feedbackToken }
@@ -91,6 +93,9 @@ class HttpAssistant implements Assistant
         ];
         if (!empty($question->categoryIds)) {
             $variables['categoryIds'] = array_values($question->categoryIds);
+        }
+        if ($question->archive) {
+            $variables['archive'] = true;
         }
 
         try {

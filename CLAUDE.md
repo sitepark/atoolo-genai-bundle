@@ -138,6 +138,13 @@ the API.
 rejects every resource whose language is not the `locale` of the
 `ResourceChannel`; the solr indexer keeps the unwrapped filter.
 
+**The archive.** An archived resource (`base.archive`, the `sp_archive` of
+the Solr index) is indexed with `archive: true`, and the application answers
+from it only when the question asks for the archive - the convention of the
+search-bundle, where `archive` is false unless set. The flag is only sent
+when set, so the hash of every other document stays what it was; archiving a
+document changes its hash and has it embedded again.
+
 **Id and source.** The indexer reads the same resources as the solr
 indexer, so its documents carry the same source, `internal`. What sets it
 apart is its id `genai` (see `AbstractIndexer` of the index-bundle): it
@@ -160,7 +167,7 @@ transport detail leaks upwards.
 | bulk update | `POST /api/index/documents`, body is a bare list of documents, answers `{documents, chunks, unchanged}` |
 | delete by id | `POST /api/index/documents/delete` `{channel, source, ids}` |
 | purge by process id | `POST /api/index/purge` `{channel, source, keepProcessId}` |
-| ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds)` |
+| ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds, archive)` |
 | feedback | GraphQL `POST /graphql`, mutation `answerFeedback(feedbackToken!, feedback)` |
 
 The application lets one request at a time write a source and refuses an
@@ -232,7 +239,7 @@ who asked: the bundle passes it on, never stores it (no session, cache or
 database) and never puts it into a log, an exception or an error message.
 
 **Through GraphQL, not passed through.** `GraphQL\Assistant` adds
-`genAiQuestion(query!, lang, categoryIds): GenAiQuestionResult!` and the
+`genAiQuestion(query!, lang, categoryIds, archive): GenAiQuestionResult!` and the
 mutation `genAiAnswerFeedback(feedbackToken!, feedback): Boolean!` to the
 atoolo schema; the types are in `config/graphql/types`, prefixed with
 `GenAi`. They follow the atoolo convention "errors as data" as well: the
@@ -274,7 +281,7 @@ so that it is logged.
 Its fields attach to the attribute-defined `RootQuery`/`RootMutation` of the
 graphql-search-bundle.
 
-From the console: `genai:ask <question> [--lang] [--category ...]`.
+From the console: `genai:ask <question> [--lang] [--category ...] [--archive]`.
 
 ## Configuration
 
