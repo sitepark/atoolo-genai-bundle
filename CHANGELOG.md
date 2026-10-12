@@ -36,8 +36,9 @@
   `--exclude-object-type`. A project sets the filter of a question that
   brings none with `atoolo_genai.assistant.default_filter`
   (`GENAI_DEFAULT_FILTER`, JSON); any filter of the question replaces it,
-  `filter: []` (`--no-default-filter`) asks without. Requires a GenAI
-  application whose `question` takes `filter`.
+  `filter: []` (`--no-default-filter`) asks without, also without the default
+  filter of the channel in the application, which applies when neither sets
+  one. Requires a GenAI application whose `question` takes `filter`.
 
 ### Bug Fixes
 

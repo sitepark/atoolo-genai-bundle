@@ -335,10 +335,23 @@ class HttpAssistantTest extends TestCase
 
         $assistant->ask(new Question('why?', filter: []));
 
+        $this->assertSame(
+            [],
+            $this->variables()['filter'] ?? null,
+            'an empty filter should be sent, so that neither default applies',
+        );
+    }
+
+    public function testWithoutAnyDefaultTheFilterIsLeftToTheApplication(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+
+        $assistant->ask(new Question('why?'));
+
         $this->assertArrayNotHasKey(
             'filter',
             $this->variables(),
-            'an empty filter should ask without any filter',
+            'the default filter of the channel should apply',
         );
     }
 

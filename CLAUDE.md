@@ -233,7 +233,11 @@ variable, read by `QuestionFilter::fromArrays()`, which refuses an invalid
 one when `HttpAssistant` is built). `Question::$filter` is `null` for the
 default filter; any filter of the question replaces it, a filter on
 categories as well, and an empty list asks without any filter. The separate
-`categoryIds` of a question is no filter and keeps the default.
+`categoryIds` of a question is no filter and keeps the default. The
+application has a default filter per channel as well (`answer.defaultFilter`),
+which applies when no `filter` is sent: `HttpAssistant` sends the filter of
+the question, even an empty one, else the default of the project, and
+without either leaves `filter` out.
 
 The DTOs in `Dto\Assistant\` mirror the public types of the application one
 to one. The channel is the `searchIndex`

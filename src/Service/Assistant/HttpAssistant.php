@@ -127,9 +127,17 @@ class HttpAssistant implements Assistant
         if ($question->archive) {
             $variables['archive'] = true;
         }
-        $filter = $question->filter ?? $this->defaultFilter;
-        if (!empty($filter)) {
-            $variables['filter'] = QuestionFilter::toVariables($filter);
+        // without a filter of its own or of the project, the default
+        // filter of the channel in the application applies; an empty
+        // filter of the question is sent, as it asks without any
+        if ($question->filter !== null) {
+            $variables['filter'] = QuestionFilter::toVariables(
+                $question->filter,
+            );
+        } elseif (!empty($this->defaultFilter)) {
+            $variables['filter'] = QuestionFilter::toVariables(
+                $this->defaultFilter,
+            );
         }
 
         try {
