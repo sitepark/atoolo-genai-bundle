@@ -82,6 +82,22 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
             $doc->date?->format('Y-m-d'),
             'unexpected date',
         );
+        $this->assertFalse(
+            $doc->archive,
+            'a resource without the flag should not be archived',
+        );
+    }
+
+    public function testEnrichArchive(): void
+    {
+        $doc = $this->enrichWithData([
+            'base' => ['title' => 'A title', 'archive' => true],
+        ]);
+
+        $this->assertTrue(
+            $doc->archive,
+            'the archive flag of the resource should be taken over',
+        );
     }
 
     public function testAMediumInAMediaContainerGetsACompositeId(): void

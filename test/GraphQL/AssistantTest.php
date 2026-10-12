@@ -29,13 +29,19 @@ class AssistantTest extends TestCase
             ->with($this->callback(
                 static fn(Question $question) => $question->text === 'why?'
                     && $question->lang->code === 'en'
-                    && $question->categoryIds === ['10'],
+                    && $question->categoryIds === ['10']
+                    && $question->archive,
             ))
             ->willReturn($answer);
 
         $this->assertSame(
             $answer,
-            (new Assistant($genAiAssistant))->question('why?', 'en_US', ['10']),
+            (new Assistant($genAiAssistant))->question(
+                'why?',
+                'en_US',
+                ['10'],
+                true,
+            ),
             'the answer of the assistant should be returned',
         );
     }
@@ -60,7 +66,8 @@ class AssistantTest extends TestCase
             ->method('ask')
             ->with($this->callback(
                 static fn(Question $question) => $question->lang->code === ''
-                    && $question->categoryIds === [],
+                    && $question->categoryIds === []
+                    && !$question->archive,
             ))
             ->willReturn(new Answer());
 

@@ -42,6 +42,13 @@ class GenAiDocument implements IndexDocument
     public ?string $url = null;
     public ?DateTimeInterface $date = null;
     /**
+     * Whether the resource is archived. The application answers from an
+     * archived document only when the question asks for the archive. Only
+     * sent when set, so that the hash of every other document stays the
+     * same.
+     */
+    public bool $archive = false;
+    /**
      * @var Category[]
      */
     public array $categories = [];
@@ -153,6 +160,10 @@ class GenAiDocument implements IndexDocument
 
         if ($this->date !== null) {
             $data['date'] = $this->date->format(DATE_ATOM);
+        }
+
+        if ($this->archive) {
+            $data['archive'] = true;
         }
 
         if (!empty($this->categories)) {

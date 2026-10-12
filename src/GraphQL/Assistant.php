@@ -57,16 +57,24 @@ class Assistant
             . 'a parent category also matches its subcategories, several ids '
             . 'are combined with OR.',
     )]
+    #[GQL\Arg(
+        name: 'archive',
+        type: 'Boolean',
+        description: 'Whether archived resources may answer the question as '
+            . 'well; without it only the others do.',
+    )]
     public function question(
         string $query,
         ?string $lang = null,
         ?array $categoryIds = null,
+        ?bool $archive = null,
     ): QuestionResult {
         try {
             return $this->assistant->ask(new Question(
                 $query,
                 ResourceLanguage::of($lang),
                 $categoryIds ?? [],
+                $archive ?? false,
             ));
         } catch (AssistantException $e) {
             throw $this->toError($e);

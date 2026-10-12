@@ -119,6 +119,7 @@ class DefaultGenAiDocumentEnricher implements
         if (in_array($resource->objectType, $this->datedObjectTypes, true)) {
             $document->date = $this->toDateTime($base->getInt('date'));
         }
+        $document->archive = $base->getBool('archive');
 
         $this->enrichKeywords($resource, $document);
     }
