@@ -12,6 +12,8 @@ use Atoolo\GenAi\Dto\Assistant\AnswerLink;
 use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSource;
 use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
+use Atoolo\GenAi\Dto\Assistant\Filter\NotFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\ObjectTypeFilter;
 use Atoolo\GenAi\Dto\Assistant\NoMatchingDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\GenAi\Dto\Assistant\QuestionResult;
@@ -196,6 +198,54 @@ class AskTest extends TestCase
         $this->assertTrue(
             $this->askedQuestion?->archive,
             'the archive option should reach the assistant',
+        );
+    }
+
+    public function testExecuteWithTheDefaultFilter(): void
+    {
+        $tester = $this->createTester(new Answer());
+
+        $tester->execute(['question' => 'why?']);
+        $tester->assertCommandIsSuccessful();
+
+        $this->assertNull(
+            $this->askedQuestion?->filter,
+            'without filter options the default filter should apply',
+        );
+    }
+
+    public function testExecuteWithoutTheDefaultFilter(): void
+    {
+        $tester = $this->createTester(new Answer());
+
+        $tester->execute(['question' => 'why?', '--no-default-filter' => true]);
+        $tester->assertCommandIsSuccessful();
+
+        $this->assertSame(
+            [],
+            $this->askedQuestion?->filter,
+            'the option should ask without any filter',
+        );
+    }
+
+    public function testExecuteWithObjectTypes(): void
+    {
+        $tester = $this->createTester(new Answer());
+
+        $tester->execute([
+            'question' => 'why?',
+            '--object-type' => ['news', 'media'],
+            '--exclude-object-type' => ['jobOffer'],
+        ]);
+        $tester->assertCommandIsSuccessful();
+
+        $this->assertEquals(
+            [
+                new ObjectTypeFilter(['news', 'media']),
+                new NotFilter(new ObjectTypeFilter(['jobOffer'])),
+            ],
+            $this->askedQuestion?->filter,
+            'the object type options should become the filter',
         );
     }
 

@@ -7,12 +7,15 @@ namespace Atoolo\GenAi\Test\GraphQL;
 use Atoolo\GenAi\Assistant as GenAiAssistant;
 use Atoolo\GenAi\Dto\Assistant\Answer;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
+use Atoolo\GenAi\Dto\Assistant\Filter\NotFilter;
+use Atoolo\GenAi\Dto\Assistant\Filter\ObjectTypeFilter;
 use Atoolo\GenAi\Dto\Assistant\NoDocumentsError;
 use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
 use Atoolo\GenAi\GraphQL\Assistant;
 use Atoolo\GenAi\GraphQL\AssistantError;
+use Atoolo\GenAi\GraphQL\Input\QuestionFilterInput;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -67,11 +70,52 @@ class AssistantTest extends TestCase
             ->with($this->callback(
                 static fn(Question $question) => $question->lang->code === ''
                     && $question->categoryIds === []
-                    && !$question->archive,
+                    && !$question->archive
+                    && $question->filter === null,
             ))
             ->willReturn(new Answer());
 
         (new Assistant($genAiAssistant))->question('why?');
+    }
+
+    public function testQuestionWithFilter(): void
+    {
+        $objectTypes = new QuestionFilterInput();
+        $objectTypes->objectTypes = ['news'];
+        $not = new QuestionFilterInput();
+        $not->not = $objectTypes;
+
+        $genAiAssistant = $this->createMock(GenAiAssistant::class);
+        $genAiAssistant->expects($this->once())
+            ->method('ask')
+            ->with($this->callback(
+                static fn(Question $question) => $question->filter == [
+                    new NotFilter(new ObjectTypeFilter(['news'])),
+                ],
+            ))
+            ->willReturn(new Answer());
+
+        (new Assistant($genAiAssistant))->question('why?', filter: [$not]);
+    }
+
+    public function testQuestionWithAnInvalidFilter(): void
+    {
+        $genAiAssistant = $this->createMock(GenAiAssistant::class);
+        $genAiAssistant->expects($this->never())->method('ask');
+
+        try {
+            (new Assistant($genAiAssistant))->question(
+                'why?',
+                filter: [new QuestionFilterInput()],
+            );
+            $this->fail('an empty filter should be refused');
+        } catch (AssistantError $e) {
+            $this->assertSame(
+                AssistantErrorType::BAD_REQUEST,
+                $e->type,
+                'the caller should get a bad request',
+            );
+        }
     }
 
     public function testAnswerFeedback(): void

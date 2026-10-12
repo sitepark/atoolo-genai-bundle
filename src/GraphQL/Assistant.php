@@ -10,6 +10,7 @@ use Atoolo\GenAi\Dto\Assistant\Question;
 use Atoolo\GenAi\Dto\Assistant\QuestionResult;
 use Atoolo\GenAi\Exception\AssistantErrorType;
 use Atoolo\GenAi\Exception\AssistantException;
+use Atoolo\GenAi\GraphQL\Input\QuestionFilterInput;
 use Atoolo\Resource\ResourceLanguage;
 use Overblog\GraphQLBundle\Annotation as GQL;
 
@@ -32,10 +33,13 @@ class Assistant
 {
     public function __construct(
         private readonly GenAiAssistant $assistant,
+        private readonly QuestionFilterFactory $filterFactory
+            = new QuestionFilterFactory(),
     ) {}
 
     /**
      * @param string[]|null $categoryIds
+     * @param QuestionFilterInput[]|null $filter
      */
     #[GQL\Query(name: 'genAiQuestion', type: 'GenAiQuestionResult!')]
     #[GQL\Description(
@@ -63,18 +67,30 @@ class Assistant
         description: 'Whether archived resources may answer the question as '
             . 'well; without it only the others do.',
     )]
+    #[GQL\Arg(
+        name: 'filter',
+        type: '[GenAiQuestionFilter!]',
+        description: 'Further conditions on the resources, combined with '
+            . 'AND. Without it the default filter of the project applies; an '
+            . 'empty list asks without any filter.',
+    )]
     public function question(
         string $query,
         ?string $lang = null,
         ?array $categoryIds = null,
         ?bool $archive = null,
+        ?array $filter = null,
     ): QuestionResult {
+        $questionFilter = $filter === null
+            ? null
+            : $this->filterFactory->create($filter);
         try {
             return $this->assistant->ask(new Question(
                 $query,
                 ResourceLanguage::of($lang),
                 $categoryIds ?? [],
                 $archive ?? false,
+                $questionFilter,
             ));
         } catch (AssistantException $e) {
             throw $this->toError($e);

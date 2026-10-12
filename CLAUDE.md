@@ -167,7 +167,7 @@ transport detail leaks upwards.
 | bulk update | `POST /api/index/documents`, body is a bare list of documents, answers `{documents, chunks, unchanged}` |
 | delete by id | `POST /api/index/documents/delete` `{channel, source, ids}` |
 | purge by process id | `POST /api/index/purge` `{channel, source, keepProcessId}` |
-| ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds, archive)` |
+| ask | GraphQL `POST /graphql`, query `question(query!, language!, channel!, categoryIds, archive, filter)` |
 | feedback | GraphQL `POST /graphql`, mutation `answerFeedback(feedbackToken!, feedback)` |
 
 The application lets one request at a time write a source and refuses an
@@ -220,6 +220,21 @@ rated; only an `Answer` is cached by the application.
   `typeName` of the application. The application may add errors, so an
   unknown one is a result, never an exception.
 
+**The filter.** A question takes further conditions on the documents,
+built like the `InputFilter` of the graphql-search-bundle and mirrored one
+to one from the `QuestionFilter` of the application: `Dto\Assistant\Filter\`
+holds `ObjectTypeFilter`, `CategoryFilter`, `AndFilter`, `OrFilter` and
+`NotFilter`; the list of a question is combined with AND. The documents of a
+type are left out with `new NotFilter(new ObjectTypeFilter([...]))`; the
+application keeps a document without object type in a negation. A project
+sets the filter of a question that brings none
+(`atoolo_genai.assistant.default_filter`, JSON in the form of the GraphQL
+variable, read by `QuestionFilter::fromArrays()`, which refuses an invalid
+one when `HttpAssistant` is built). `Question::$filter` is `null` for the
+default filter; any filter of the question replaces it, a filter on
+categories as well, and an empty list asks without any filter. The separate
+`categoryIds` of a question is no filter and keeps the default.
+
 The DTOs in `Dto\Assistant\` mirror the public types of the application one
 to one. The channel is the `searchIndex`
 of the `ResourceChannel`; a question without a language is asked in the one
@@ -239,7 +254,7 @@ who asked: the bundle passes it on, never stores it (no session, cache or
 database) and never puts it into a log, an exception or an error message.
 
 **Through GraphQL, not passed through.** `GraphQL\Assistant` adds
-`genAiQuestion(query!, lang, categoryIds, archive): GenAiQuestionResult!` and the
+`genAiQuestion(query!, lang, categoryIds, archive, filter): GenAiQuestionResult!` and the
 mutation `genAiAnswerFeedback(feedbackToken!, feedback): Boolean!` to the
 atoolo schema; the types are in `config/graphql/types`, prefixed with
 `GenAi`. They follow the atoolo convention "errors as data" as well: the
@@ -279,9 +294,17 @@ logger would log it; an `INTERNAL_ERROR` gets a general message, since its
 own names the address of the application, and keeps the cause as previous
 so that it is logged.
 Its fields attach to the attribute-defined `RootQuery`/`RootMutation` of the
-graphql-search-bundle.
+graphql-search-bundle. `filter` is a list of the input `GenAiQuestionFilter`
+(`GraphQL\Input\QuestionFilterInput`, attribute-defined like `InputFilter`,
+so overblog hydrates it recursively; a missing `filter` is the default
+filter, `filter: []` none); `GraphQL\QuestionFilterFactory` turns
+it into the filter DTOs as the `FilterListFactory` does for the search.
+Unlike there, an input with no or more than one field is refused with
+`BAD_REQUEST` rather than reduced to its first field, so that a wrongly built
+exclusion is not silently dropped.
 
-From the console: `genai:ask <question> [--lang] [--category ...] [--archive]`.
+From the console: `genai:ask <question> [--lang] [--category ...] [--archive]
+[--object-type ...] [--exclude-object-type ...] [--no-default-filter]`.
 
 ## Configuration
 
@@ -297,6 +320,7 @@ connection, so that each one can be set on its own:
 | `GENAI_API_KEY` | *(empty, no key is sent)* |
 | `GENAI_IDLE_TIMEOUT` | `300` |
 | `GENAI_BUSY_RETRIES` | `15,30,60` *(seconds between the attempts of an index request refused with 409, empty disables)* |
+| `GENAI_DEFAULT_FILTER` | `[]` *(the filter of a question that brings none, JSON like `[{"not":{"objectTypes":["news"]}}]`)* |
 
 Without any of them the bundle talks to `http://localhost:8385`.
 `GENAI_IDLE_TIMEOUT` is the seconds the client waits for the next byte of an
