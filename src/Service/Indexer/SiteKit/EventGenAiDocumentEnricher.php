@@ -109,10 +109,11 @@ class EventGenAiDocumentEnricher implements DocumentEnricher
             $doc->content[] = $dates;
         }
 
-        $this->collectContactSections(
-            $resource->data->getArray('content'),
-            $doc,
-        );
+        foreach (
+            MainContent::of($resource->data->getArray('content')) as $node
+        ) {
+            $this->collectContactSections($node, $doc);
+        }
 
         return $doc;
     }

@@ -286,6 +286,41 @@ class EventGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testContactSectionsOutsideTheMainAreaAreIgnored(): void
+    {
+        $doc = $this->enrich(['content' => ['items' => [
+            [
+                'type' => 'main',
+                'items' => [
+                    $this->contactSection('eventsCalendar-organizer', [[
+                        'type' => 'contactPoint',
+                        'model' => ['organisation' => 'Kulturamt'],
+                    ]]),
+                ],
+            ],
+            [
+                'type' => 'stuttgart.easyLanguage',
+                'items' => [
+                    $this->contactSection('eventsCalendar-venue', [[
+                        'type' => 'contactPoint',
+                        'model' => ['organisation' => 'Liederhalle'],
+                    ]]),
+                ],
+            ],
+        ]]]);
+
+        $this->assertEquals(
+            [
+                new TextSection(
+                    'Veranstalter',
+                    '<ul><li>Name: Kulturamt</li></ul>',
+                ),
+            ],
+            $doc->content,
+            'only the contact sections of the main area should be added',
+        );
+    }
+
     public function testEmptyContactsAreSkipped(): void
     {
         $doc = $this->enrich(['content' => ['items' => [
