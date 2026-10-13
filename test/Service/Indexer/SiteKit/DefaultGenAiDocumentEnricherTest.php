@@ -751,7 +751,7 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
-    public function testOnlyTheMainAreaIsIndexed(): void
+    public function testEasyLanguageAreaIsLeftOut(): void
     {
         $doc = $this->enrichWithData([
             'content' => [
@@ -767,36 +767,23 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
                             $this->textBlock('Leichte Sprache', '<p>2</p>'),
                         ],
                     ],
+                    [
+                        'type' => 'stuttgart.citygov.organisationDescription',
+                        'items' => [
+                            $this->textBlock('Beschreibung', '<p>3</p>'),
+                        ],
+                    ],
                 ],
             ],
         ]);
 
         $this->assertEquals(
-            ['Main'],
+            ['Main', 'Beschreibung'],
             array_map(
                 static fn($section): string => $section->headline,
                 $doc->content,
             ),
-            'only the main area should become sections',
-        );
-    }
-
-    public function testContentWithoutMainAreaIsIndexedAsAWhole(): void
-    {
-        $doc = $this->enrichWithData([
-            'content' => [
-                'type' => 'ROOT',
-                'items' => [$this->textBlock('One', '<p>1</p>')],
-            ],
-        ]);
-
-        $this->assertEquals(
-            ['One'],
-            array_map(
-                static fn($section): string => $section->headline,
-                $doc->content,
-            ),
-            'content without a main area should be walked as a whole',
+            'every area but the easy language should become sections',
         );
     }
 

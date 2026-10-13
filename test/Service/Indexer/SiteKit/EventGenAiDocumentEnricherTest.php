@@ -286,7 +286,7 @@ class EventGenAiDocumentEnricherTest extends TestCase
         );
     }
 
-    public function testContactSectionsOutsideTheMainAreaAreIgnored(): void
+    public function testContactSectionsOfTheEasyLanguageAreIgnored(): void
     {
         $doc = $this->enrich(['content' => ['items' => [
             [
@@ -317,7 +317,7 @@ class EventGenAiDocumentEnricherTest extends TestCase
                 ),
             ],
             $doc->content,
-            'only the contact sections of the main area should be added',
+            'the contact sections of the easy language should be left out',
         );
     }
 
