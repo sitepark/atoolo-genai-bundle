@@ -81,7 +81,10 @@ assistant.
   document. Unlike the Solr enricher it does not flatten the resource into one
   string: it walks the content tree and turns every block that carries text or
   links into a section, keeping the editor's HTML, because the application
-  converts that markup block by block and chunks along it. A
+  converts that markup block by block and chunks along it. Only the `main`
+  area of the content is walked (`SiteKit\MainContent`), not further
+  versions of the article such as `stuttgart.easyLanguage`; content without
+  a `main` area is walked as a whole. A
   `content.section` block (an accordion) carries no text, only a headline;
   as the sections are flat, its headline leads those of the blocks it holds
   ("Ausbildung", "Ausbildung › Voraussetzungen"). The contact point

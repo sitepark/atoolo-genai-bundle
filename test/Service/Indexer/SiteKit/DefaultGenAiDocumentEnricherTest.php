@@ -751,6 +751,55 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testOnlyTheMainAreaIsIndexed(): void
+    {
+        $doc = $this->enrichWithData([
+            'content' => [
+                'type' => 'ROOT',
+                'items' => [
+                    [
+                        'type' => 'main',
+                        'items' => [$this->textBlock('Main', '<p>1</p>')],
+                    ],
+                    [
+                        'type' => 'stuttgart.easyLanguage',
+                        'items' => [
+                            $this->textBlock('Leichte Sprache', '<p>2</p>'),
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertEquals(
+            ['Main'],
+            array_map(
+                static fn($section): string => $section->headline,
+                $doc->content,
+            ),
+            'only the main area should become sections',
+        );
+    }
+
+    public function testContentWithoutMainAreaIsIndexedAsAWhole(): void
+    {
+        $doc = $this->enrichWithData([
+            'content' => [
+                'type' => 'ROOT',
+                'items' => [$this->textBlock('One', '<p>1</p>')],
+            ],
+        ]);
+
+        $this->assertEquals(
+            ['One'],
+            array_map(
+                static fn($section): string => $section->headline,
+                $doc->content,
+            ),
+            'content without a main area should be walked as a whole',
+        );
+    }
+
     public function testSectionHeadlineIsPutInFrontOfItsBlocks(): void
     {
         $doc = $this->enrichWithData([
