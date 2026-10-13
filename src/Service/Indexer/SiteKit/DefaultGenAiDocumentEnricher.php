@@ -230,11 +230,10 @@ class DefaultGenAiDocumentEnricher implements
             $sections[] = new TextSection('', $indexData);
         }
 
-        foreach (
-            MainContent::of($resource->data->getArray('content')) as $node
-        ) {
-            $this->collectSections($node, $sections);
-        }
+        $this->collectSections(
+            ContentAreas::of($resource->data->getArray('content')),
+            $sections,
+        );
 
         /** @var ContactPoint $contactPoint */
         $contactPoint = $resource->data->getArray('metadata.contactPoint');
