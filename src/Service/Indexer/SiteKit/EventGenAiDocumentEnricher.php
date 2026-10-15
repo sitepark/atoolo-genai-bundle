@@ -98,7 +98,11 @@ class EventGenAiDocumentEnricher implements DocumentEnricher
         IndexDocument $doc,
         string $processId,
     ): IndexDocument {
-        if ($resource->objectType !== self::OBJECT_TYPE || $doc->isMedia()) {
+        if (
+            $resource->objectType !== self::OBJECT_TYPE
+            || $doc->isMedia()
+            || $doc->isKnowledge()
+        ) {
             return $doc;
         }
 

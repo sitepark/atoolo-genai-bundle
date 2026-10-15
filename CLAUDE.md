@@ -37,10 +37,17 @@ assistant.
 
 - `GenAiDocument` — the payload. Its property names **are** the JSON keys, so
   the mapping lives nowhere else. `jsonSerialize()` drops null fields and
-  empty lists and formats the date as `DATE_ATOM`. The application knows two
+  empty lists and formats the date as `DATE_ATOM`. The application knows three
   kinds of document and picks them by `type`: an `article` carries the
   sections it is made of, a `media` the text the CMS extracted from a binary
-  asset. Both live in this one class, because the enricher receives the
+  asset, a `knowledge` entry one HTML `text` without url, date, categories or
+  archive - a text without a page of its own, which an answer cites as the
+  internal knowledge base. The enricher fills a knowledge entry like an
+  article; its payload joins the intro and the text sections, each under its
+  headline, and leaves the link sections out. Resources of the object types
+  in `GENAI_KNOWLEDGE_OBJECT_TYPES` are knowledge entries, sent by the same
+  indexer with the same source, as their ids differ from those of the
+  articles. All kinds live in this one class, because the enricher receives the
   document from the factory before it has seen the resource and may only fill
   it in, never exchange it - the port types `enrichDocument()` as returning
   what it was given.
@@ -211,7 +218,10 @@ rated; only an `Answer` is cached by the application.
 - `Answer` - the `sections`, an `AnswerTextSection` with `html` or an
   `AnswerLinksSection` with `links`, each with `headline` and `sources`; a
   section of another type is skipped. The prefix keeps them apart from
-  `Dto\Indexer\TextSection` and `LinkSection`.
+  `Dto\Indexer\TextSection` and `LinkSection`. A source is a `DOCUMENT`
+  with its `url`, or the internal knowledge base (`KNOWLEDGE`), a knowledge
+  entry without a page, whose `url` is null and which is shown without link;
+  a document without url is skipped, a source without `kind` is a document.
 - `NoDocumentsError` - the search found no chunk similar enough, the model
   was not asked.
 - `NoMatchingDocumentsError` - the model found none of the chunks to answer
@@ -327,6 +337,7 @@ connection, so that each one can be set on its own:
 | `GENAI_API_KEY` | *(empty, no key is sent)* |
 | `GENAI_IDLE_TIMEOUT` | `300` |
 | `GENAI_BUSY_RETRIES` | `15,30,60` *(seconds between the attempts of an index request refused with 409, empty disables)* |
+| `GENAI_KNOWLEDGE_OBJECT_TYPES` | *(empty, the object types whose resources are knowledge entries, comma separated)* |
 | `GENAI_DEFAULT_FILTER` | `[]` *(the filter of a question that brings none, JSON like `[{"not":{"objectTypes":["news"]}}]`)* |
 
 Without any of them the bundle talks to `http://localhost:8385`.

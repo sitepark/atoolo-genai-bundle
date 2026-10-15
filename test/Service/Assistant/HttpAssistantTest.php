@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Test\Service\Assistant;
 
+use Atoolo\GenAi\Dto\Assistant\AnswerSourceKind;
+use Atoolo\GenAi\Dto\Assistant\AnswerSource;
 use Atoolo\GenAi\Dto\Assistant\Answer;
 use Atoolo\GenAi\Dto\Assistant\AnswerCutOffError;
 use Atoolo\GenAi\Dto\Assistant\AnswerFeedback;
@@ -421,6 +423,53 @@ class HttpAssistantTest extends TestCase
                 . 'should be skipped',
             );
         }
+    }
+
+    public function testAskKeepsTheInternalKnowledgeBaseWithoutUrl(): void
+    {
+        $assistant = $this->createAssistant(json_encode(['data' => [
+            'question' => [
+                '__typename' => 'Answer',
+                'sections' => [
+                    [
+                        '__typename' => 'TextSection',
+                        'headline' => 'Citizens\' offices',
+                        'html' => '<p>Every office serves everyone.</p>',
+                        'sources' => [
+                            [
+                                'kind' => 'KNOWLEDGE',
+                                'url' => null,
+                                'title' => 'Interne Wissensbasis',
+                            ],
+                            [
+                                'kind' => 'DOCUMENT',
+                                'url' => 'https://www.example.com/a.php',
+                                'title' => 'A',
+                            ],
+                            ['url' => 'https://www.example.com/b.php', 'title' => 'B'],
+                        ],
+                    ],
+                ],
+            ],
+        ]], JSON_THROW_ON_ERROR));
+
+        $answer = $assistant->ask(new Question('who?'));
+
+        $this->assertInstanceOf(Answer::class, $answer, 'expected an answer');
+        $this->assertEquals(
+            [
+                new AnswerSource(
+                    null,
+                    'Interne Wissensbasis',
+                    AnswerSourceKind::KNOWLEDGE,
+                ),
+                new AnswerSource('https://www.example.com/a.php', 'A'),
+                new AnswerSource('https://www.example.com/b.php', 'B'),
+            ],
+            $answer->sections[0]->sources,
+            'the internal knowledge base is kept without url, a source '
+            . 'without kind is a document',
+        );
     }
 
     public function testAskWithoutSections(): void

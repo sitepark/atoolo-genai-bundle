@@ -12,6 +12,7 @@ use Atoolo\GenAi\Dto\Assistant\AnswerLink;
 use Atoolo\GenAi\Dto\Assistant\AnswerLinksSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSection;
 use Atoolo\GenAi\Dto\Assistant\AnswerSource;
+use Atoolo\GenAi\Dto\Assistant\AnswerSourceKind;
 use Atoolo\GenAi\Dto\Assistant\AnswerTextSection;
 use Atoolo\GenAi\Dto\Assistant\Filter\QuestionFilter;
 use Atoolo\GenAi\Dto\Assistant\NoDocumentsError;
@@ -62,13 +63,13 @@ class HttpAssistant implements Assistant
               sections {
                 __typename
                 headline
-                sources { url title }
+                sources { kind url title }
                 ... on TextSection { html }
                 ... on LinksSection { links { url label } }
               }
             }
             ... on NoMatchingDocumentsError {
-              hints { headline html sources { url title } }
+              hints { headline html sources { kind url title } }
               suggestedQuestions
             }
           }
@@ -350,12 +351,20 @@ class HttpAssistant implements Assistant
 
         $result = [];
         foreach ($sources as $source) {
-            if (!is_array($source) || !is_string($source['url'] ?? null)) {
+            if (!is_array($source)) {
+                continue;
+            }
+            // a document needs its URL; the internal knowledge base has none
+            $kind = AnswerSourceKind::tryFrom($this->string($source, 'kind'))
+                ?? AnswerSourceKind::DOCUMENT;
+            $url = is_string($source['url'] ?? null) ? $source['url'] : null;
+            if ($kind === AnswerSourceKind::DOCUMENT && $url === null) {
                 continue;
             }
             $result[] = new AnswerSource(
-                $source['url'],
+                $url,
                 $this->string($source, 'title'),
+                $kind,
             );
         }
         return $result;
