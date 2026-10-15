@@ -23,6 +23,7 @@ services:
       - '@atoolo_resource.resource_channel'
       - 'internal'
       - '%atoolo_genai.indexer.dated_object_types%'
+      - '%atoolo_genai.indexer.knowledge_object_types%'
     tags:
       - { name: 'atoolo_genai.indexer.document_enricher', priority: 100 }
 

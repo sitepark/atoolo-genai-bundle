@@ -320,4 +320,49 @@ class GenAiDocumentTest extends TestCase
             'unexpected categories',
         );
     }
+
+    public function testKnowledgeEntryIsSentAsOneTextWithoutPageFields(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->type = GenAiDocument::TYPE_KNOWLEDGE;
+        $doc->id = 'k1';
+        $doc->channel = 'www';
+        $doc->source = 'internal';
+        $doc->processId = 'p1';
+        $doc->objectType = 'knowledge';
+        $doc->title = 'Bürgerbüros';
+        $doc->url = 'https://www.example.com/k1.php';
+        $doc->date = new DateTime('2026-10-15');
+        $doc->archive = true;
+        $doc->categories = [new Category('3', 'Bürgerservice')];
+        $doc->addKeywords('Bürgerbüro');
+        $doc->kicker = 'Service';
+        $doc->intro = '<p>Jedes Bürgerbüro ist für alle zuständig.</p>';
+        $doc->content = [
+            new TextSection('Lage & Bezirk', '<p>Das Bürgerbüro West liegt im Westen.</p>'),
+            new LinkSection('Service', [new Link('/form', 'Antrag')]),
+        ];
+
+        $data = $doc->jsonSerialize();
+        unset($data['hash']);
+
+        $this->assertEquals(
+            [
+                'type' => 'knowledge',
+                'id' => 'k1',
+                'channel' => 'www',
+                'source' => 'internal',
+                'processId' => 'p1',
+                'title' => 'Bürgerbüros',
+                'keywords' => ['Bürgerbüro'],
+                'text' => "<p>Jedes Bürgerbüro ist für alle zuständig.</p>\n"
+                    . "<h2>Lage &amp; Bezirk</h2>\n"
+                    . '<p>Das Bürgerbüro West liegt im Westen.</p>',
+            ],
+            $data,
+            'a knowledge entry has no page: no url, links, date, categories '
+            . 'or archive, and its text is the intro and the text sections',
+        );
+        $this->assertTrue($doc->isKnowledge(), 'should be a knowledge entry');
+    }
 }

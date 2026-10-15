@@ -22,6 +22,11 @@ parameters:
   # documents are sent without a date, so that their age does not matter
   atoolo_genai.indexer.dated_object_types.default: 'news,media,embedded-media'
   atoolo_genai.indexer.dated_object_types: '%env(csv:default:atoolo_genai.indexer.dated_object_types.default:GENAI_DATED_OBJECT_TYPES)%'
+  # the object types whose resources are knowledge entries, comma separated:
+  # texts without a page of their own, which the application cites as its
+  # internal knowledge base; empty for none
+  atoolo_genai.indexer.knowledge_object_types.default: ''
+  atoolo_genai.indexer.knowledge_object_types: '%env(csv:default:atoolo_genai.indexer.knowledge_object_types.default:GENAI_KNOWLEDGE_OBJECT_TYPES)%'
   # the filter of a question that brings none, as JSON in the form of the
   # GraphQL argument filter, e.g. [{"not":{"objectTypes":["news"]}}];
   # a question with a filter of its own replaces it

@@ -280,6 +280,41 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testAConfiguredTypeIsAKnowledgeEntry(): void
+    {
+        $enricher = new DefaultGenAiDocumentEnricher(
+            $this->navigationLoader,
+            $this->createResourceChannel(),
+            'internal',
+            [],
+            ['knowledge'],
+        );
+
+        /** @var GenAiDocument $doc */
+        $doc = $enricher->enrichDocument(
+            $this->createResource(['objectType' => 'knowledge']),
+            new GenAiDocument(),
+            'progress-id',
+        );
+
+        $this->assertEquals(
+            GenAiDocument::TYPE_KNOWLEDGE,
+            $doc->type,
+            'a resource of a configured type should be a knowledge entry',
+        );
+    }
+
+    public function testWithoutConfiguredTypesNoResourceIsAKnowledgeEntry(): void
+    {
+        $doc = $this->enrichWithData(['objectType' => 'knowledge']);
+
+        $this->assertEquals(
+            GenAiDocument::TYPE_ARTICLE,
+            $doc->type,
+            'without configured types a resource should stay an article',
+        );
+    }
+
     public function testAMediumIsSentWithItsExtractedText(): void
     {
         $doc = $this->enrichWithData([

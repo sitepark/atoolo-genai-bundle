@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atoolo\GenAi\Service\Indexer;
 
+use Atoolo\GenAi\Dto\Indexer\TextSection;
 use Atoolo\GenAi\Dto\Indexer\Category;
 use Atoolo\GenAi\Dto\Indexer\ContentSection;
 use Atoolo\Index\Service\Indexer\IndexDocument;
@@ -18,7 +19,10 @@ use DateTimeInterface;
  *
  * The application knows two kinds of document and selects them by `type`: an
  * article carries the sections it is made of, a medium the text that was
- * extracted from a binary asset. Both live in this one class, because the
+ * extracted from a binary asset. A knowledge entry is filled like an
+ * article but sent as one HTML text, without url, date and categories: a
+ * text without a page of its own, which the application cites as its
+ * internal knowledge base. Both live in this one class, because the
  * enricher receives the document from the factory before it has seen the
  * resource and may only fill it in, never exchange it. {@see jsonSerialize()}
  * sends the fields of the kind the document was set to.
@@ -27,6 +31,7 @@ class GenAiDocument implements IndexDocument
 {
     public const TYPE_ARTICLE = 'article';
     public const TYPE_MEDIA = 'media';
+    public const TYPE_KNOWLEDGE = 'knowledge';
 
     public string $type = self::TYPE_ARTICLE;
     public ?string $id = null;
@@ -104,6 +109,11 @@ class GenAiDocument implements IndexDocument
         return $this->type === self::TYPE_MEDIA;
     }
 
+    public function isKnowledge(): bool
+    {
+        return $this->type === self::TYPE_KNOWLEDGE;
+    }
+
     /**
      * Fingerprint of what the application embeds: the payload without the
      * `processId`, which changes with every run. It is taken from the
@@ -140,6 +150,10 @@ class GenAiDocument implements IndexDocument
      */
     private function payload(): array
     {
+        if ($this->isKnowledge()) {
+            return $this->knowledgePayload();
+        }
+
         $data = ['type' => $this->type];
 
         foreach (
@@ -204,6 +218,56 @@ class GenAiDocument implements IndexDocument
             );
         }
 
+        return $data;
+    }
+
+    /**
+     * A knowledge entry: the fields the application takes for it, the
+     * intro and the text sections joined into one HTML text, each section
+     * under its headline. It has no page, so neither url nor links, and it
+     * is valid for the whole channel, so neither date, categories nor
+     * archive.
+     *
+     * @return array<string,mixed>
+     */
+    private function knowledgePayload(): array
+    {
+        $data = ['type' => $this->type];
+        foreach (
+            [
+                'id' => $this->id,
+                'channel' => $this->channel,
+                'source' => $this->source,
+                'processId' => $this->processId,
+                'title' => $this->title,
+            ] as $name => $value
+        ) {
+            if ($value !== null) {
+                $data[$name] = $value;
+            }
+        }
+        if (!empty($this->keywords)) {
+            $data['keywords'] = array_values($this->keywords);
+        }
+
+        $parts = [];
+        if ($this->intro !== null && $this->intro !== '') {
+            $parts[] = $this->intro;
+        }
+        foreach ($this->content as $section) {
+            if (!$section instanceof TextSection) {
+                continue;
+            }
+            if ($section->headline !== '') {
+                $parts[] = '<h2>'
+                    . htmlspecialchars($section->headline, ENT_QUOTES | ENT_HTML5)
+                    . '</h2>';
+            }
+            $parts[] = $section->html;
+        }
+        if (!empty($parts)) {
+            $data['text'] = implode("\n", $parts);
+        }
         return $data;
     }
 }

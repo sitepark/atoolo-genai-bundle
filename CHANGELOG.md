@@ -32,6 +32,12 @@
 
 ### Features
 
+- Resources of the object types in `GENAI_KNOWLEDGE_OBJECT_TYPES` (comma
+  separated, empty by default) are sent as knowledge entries of the type
+  `knowledge`: one HTML text of the intro and the text sections, without
+  url, date, categories or archive. The GenAI application finds them with a
+  search of their own and cites them as the internal knowledge base.
+  Requires the GenAI application with knowledge entries (commit `9104d74`).
 - Documents without content beyond their title, headline and kicker are no
   longer sent to the GenAI application but deleted from it and logged.
 - Events of the events calendar carry their dates, venue, organizers and

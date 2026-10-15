@@ -50,6 +50,10 @@ class DefaultGenAiDocumentEnricher implements
      * @param list<string> $datedObjectTypes the object types whose date is
      *     relevant, e.g. news and media; the other resources are sent without
      *     a date, so that their age does not lower their rank
+     * @param list<string> $knowledgeObjectTypes the object types whose
+     *     resources are knowledge entries: texts without a page of their own,
+     *     filled like an article and sent as one text, which the application
+     *     cites as its internal knowledge base
      */
     public function __construct(
         private readonly SiteKitNavigationHierarchyLoader $navigationLoader,
@@ -60,6 +64,7 @@ class DefaultGenAiDocumentEnricher implements
             'media',
             'embedded-media',
         ],
+        private readonly array $knowledgeObjectTypes = [],
     ) {
         $this->contactPointSections = new ContactPointSections();
     }
@@ -75,9 +80,15 @@ class DefaultGenAiDocumentEnricher implements
         IndexDocument $doc,
         string $processId,
     ): IndexDocument {
-        $doc->type = $resource->data->getBool('media')
-            ? GenAiDocument::TYPE_MEDIA
-            : GenAiDocument::TYPE_ARTICLE;
+        $doc->type = match (true) {
+            $resource->data->getBool('media') => GenAiDocument::TYPE_MEDIA,
+            in_array(
+                $resource->objectType,
+                $this->knowledgeObjectTypes,
+                true,
+            ) => GenAiDocument::TYPE_KNOWLEDGE,
+            default => GenAiDocument::TYPE_ARTICLE,
+        };
         $doc->processId = $processId;
 
         $this->enrichCommonFields($resource, $doc);
