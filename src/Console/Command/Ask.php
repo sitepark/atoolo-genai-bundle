@@ -198,7 +198,7 @@ class Ask extends Command
             $io->table(
                 ['title', 'url'],
                 array_map(
-                    static fn($source) => [$source->title, $source->url],
+                    static fn($source) => [$source->title, $source->url ?? '-'],
                     $section->sources,
                 ),
             );

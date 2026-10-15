@@ -32,13 +32,13 @@ query {
       sections {
         __typename
         headline
-        sources { url title }
+        sources { kind url title }
         ... on GenAiTextSection { html }
         ... on GenAiLinksSection { links { url label } }
       }
     }
     ... on GenAiNoMatchingDocumentsError {
-      hints { headline html sources { url title } }
+      hints { headline html sources { kind url title } }
       suggestedQuestions
     }
   }

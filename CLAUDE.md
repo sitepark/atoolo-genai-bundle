@@ -211,7 +211,10 @@ rated; only an `Answer` is cached by the application.
 - `Answer` - the `sections`, an `AnswerTextSection` with `html` or an
   `AnswerLinksSection` with `links`, each with `headline` and `sources`; a
   section of another type is skipped. The prefix keeps them apart from
-  `Dto\Indexer\TextSection` and `LinkSection`.
+  `Dto\Indexer\TextSection` and `LinkSection`. A source is a `DOCUMENT`
+  with its `url`, or the internal knowledge base (`KNOWLEDGE`), a knowledge
+  entry without a page, whose `url` is null and which is shown without link;
+  a document without url is skipped, a source without `kind` is a document.
 - `NoDocumentsError` - the search found no chunk similar enough, the model
   was not asked.
 - `NoMatchingDocumentsError` - the model found none of the chunks to answer

@@ -1,0 +1,5 @@
+GenAiAnswerSourceKind:
+  type: enum
+  config:
+    description: "What a GenAiAnswerSource is."
+    enumClass: Atoolo\GenAi\Dto\Assistant\AnswerSourceKind

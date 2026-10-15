@@ -4,6 +4,14 @@
 
 ### BREAKING CHANGES
 
+- `GenAiAnswerSource` has the field `kind` (`GenAiAnswerSourceKind`:
+  `DOCUMENT` or `KNOWLEDGE`), and its `url` may be null: a section written
+  from a knowledge entry names the internal knowledge base, a text without a
+  page of its own, as its source, without url and with the title "Interne
+  Wissensbasis"; show it without link. In PHP `AnswerSource::$url` is
+  nullable and `AnswerSource::$kind` is new. Before, such a source was
+  silently dropped. Requires the GenAI application with knowledge entries
+  (commit `9104d74`); release and deploy both together.
 - `genAiQuestion` returns the union `GenAiQuestionResult` of `GenAiAnswer`,
   `GenAiNoDocumentsError`, `GenAiNoMatchingDocumentsError`,
   `GenAiAnswerCutOffError` and `GenAiUnansweredError`, which all implement

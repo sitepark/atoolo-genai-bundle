@@ -1,7 +1,12 @@
 GenAiAnswerSource:
   type: object
   config:
-    description: "A resource the content of a section comes from."
+    description: "What the content of a section comes from: a resource of the website, or the internal knowledge base, a knowledge entry without a page of its own."
     fields:
-      url: { type: "String!" }
+      kind:
+        type: "GenAiAnswerSourceKind!"
+        description: "DOCUMENT for a resource with a URL, KNOWLEDGE for the internal knowledge base."
+      url:
+        type: "String"
+        description: "The URL of the resource, null for the internal knowledge base, which is shown without link."
       title: { type: "String!" }
