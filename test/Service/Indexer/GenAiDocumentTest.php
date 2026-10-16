@@ -365,4 +365,57 @@ class GenAiDocumentTest extends TestCase
         );
         $this->assertTrue($doc->isKnowledge(), 'should be a knowledge entry');
     }
+
+    public function testGlossaryIsSentWithItsEntriesOnly(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->type = GenAiDocument::TYPE_GLOSSARY;
+        $doc->id = '40540';
+        $doc->channel = 'www';
+        $doc->source = 'internal';
+        $doc->processId = 'p1';
+        $doc->title = 'Stadtteile';
+        $doc->url = 'https://www.example.com/g.php';
+        $doc->addKeywords('Glossar');
+        $doc->entries = [
+            ['terms' => ['OB'], 'expansion' => 'Oberbürgermeister'],
+            ['terms' => ['perso', 'persi'], 'expansion' => 'Personalausweis'],
+        ];
+
+        $data = $doc->jsonSerialize();
+        unset($data['hash']);
+
+        $this->assertEquals(
+            [
+                'type' => 'glossary',
+                'id' => '40540',
+                'channel' => 'www',
+                'source' => 'internal',
+                'processId' => 'p1',
+                'title' => 'Stadtteile',
+                'entries' => [
+                    ['terms' => ['OB'], 'expansion' => 'Oberbürgermeister'],
+                    ['terms' => ['perso', 'persi'], 'expansion' => 'Personalausweis'],
+                ],
+            ],
+            $data,
+            'a glossary has its entries, but no url and no keywords',
+        );
+        $this->assertTrue($doc->isGlossary(), 'should be a glossary');
+    }
+
+    public function testTheHashOfAGlossaryChangesWithItsEntries(): void
+    {
+        $doc = new GenAiDocument();
+        $doc->type = GenAiDocument::TYPE_GLOSSARY;
+        $doc->id = '40540';
+        $doc->entries = [['terms' => ['OB'], 'expansion' => 'Oberbürgermeister']];
+        $hash = $doc->contentHash();
+
+        $doc->processId = 'p2';
+        $this->assertEquals($hash, $doc->contentHash(), 'the run does not change the hash');
+
+        $doc->entries = [['terms' => ['OB'], 'expansion' => 'Oberbürgermeisterin']];
+        $this->assertNotEquals($hash, $doc->contentHash(), 'another expansion changes it');
+    }
 }

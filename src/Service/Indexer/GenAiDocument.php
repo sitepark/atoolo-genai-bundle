@@ -22,16 +22,20 @@ use DateTimeInterface;
  * extracted from a binary asset. A knowledge entry is filled like an
  * article but sent as one HTML text, without url, date and categories: a
  * text without a page of its own, which the application cites as its
- * internal knowledge base. Both live in this one class, because the
- * enricher receives the document from the factory before it has seen the
- * resource and may only fill it in, never exchange it. {@see jsonSerialize()}
- * sends the fields of the kind the document was set to.
+ * internal knowledge base. A glossary carries entries only: terms of the
+ * questions and what the pages call them, which the application normalizes
+ * and searches the questions of the channel with; it is neither chunked nor
+ * embedded. All live in this one class, because the enricher receives the
+ * document from the factory before it has seen the resource and may only
+ * fill it in, never exchange it. {@see jsonSerialize()} sends the fields of
+ * the kind the document was set to.
  */
 class GenAiDocument implements IndexDocument
 {
     public const TYPE_ARTICLE = 'article';
     public const TYPE_MEDIA = 'media';
     public const TYPE_KNOWLEDGE = 'knowledge';
+    public const TYPE_GLOSSARY = 'glossary';
 
     public string $type = self::TYPE_ARTICLE;
     public ?string $id = null;
@@ -91,6 +95,14 @@ class GenAiDocument implements IndexDocument
     public ?string $rawText = null;
 
     /**
+     * Only sent for a glossary: its entries, each with the terms of the
+     * questions and what the pages call them.
+     *
+     * @var list<array{terms: list<string>, expansion: string}>
+     */
+    public array $entries = [];
+
+    /**
      * Adds keywords, stripped and without the empty ones, and keeps every
      * keyword only once, so that several enrichers can contribute theirs.
      */
@@ -112,6 +124,11 @@ class GenAiDocument implements IndexDocument
     public function isKnowledge(): bool
     {
         return $this->type === self::TYPE_KNOWLEDGE;
+    }
+
+    public function isGlossary(): bool
+    {
+        return $this->type === self::TYPE_GLOSSARY;
     }
 
     /**
@@ -152,6 +169,9 @@ class GenAiDocument implements IndexDocument
     {
         if ($this->isKnowledge()) {
             return $this->knowledgePayload();
+        }
+        if ($this->isGlossary()) {
+            return $this->glossaryPayload();
         }
 
         $data = ['type' => $this->type];
@@ -218,6 +238,32 @@ class GenAiDocument implements IndexDocument
             );
         }
 
+        return $data;
+    }
+
+    /**
+     * A glossary: its title and entries. It is no page and nothing is
+     * searched in it, so it has neither url, keywords, categories nor date.
+     *
+     * @return array<string,mixed>
+     */
+    private function glossaryPayload(): array
+    {
+        $data = ['type' => $this->type];
+        foreach (
+            [
+                'id' => $this->id,
+                'channel' => $this->channel,
+                'source' => $this->source,
+                'processId' => $this->processId,
+                'title' => $this->title,
+            ] as $name => $value
+        ) {
+            if ($value !== null) {
+                $data[$name] = $value;
+            }
+        }
+        $data['entries'] = $this->entries;
         return $data;
     }
 

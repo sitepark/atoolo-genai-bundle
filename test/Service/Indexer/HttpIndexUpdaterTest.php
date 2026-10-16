@@ -220,6 +220,44 @@ class HttpIndexUpdaterTest extends TestCase
         $this->assertEquals(1, $result->getAccepted(), 'unexpected accepted');
     }
 
+    public function testGlossaryIsSentWithoutText(): void
+    {
+        $requests = [];
+        $updater = $this->createRecordingUpdater('{"documents":1,"chunks":0}', $requests);
+        $doc = $updater->createDocument();
+        $doc->type = GenAiDocument::TYPE_GLOSSARY;
+        $doc->id = '40540';
+        $doc->source = 'internal';
+        $doc->title = 'Stadtteile';
+        $doc->entries = [['terms' => ['OB'], 'expansion' => 'Oberbürgermeister']];
+        $updater->addDocument($doc);
+
+        $result = $updater->update();
+
+        $this->assertCount(1, $requests, 'only the bulk expected, no delete');
+        $this->assertStringContainsString(
+            '"type":"glossary"',
+            $requests[0]['body'],
+            'the glossary should be sent',
+        );
+        $this->assertEquals(1, $result->getAccepted(), 'unexpected accepted');
+    }
+
+    public function testGlossaryWithoutEntriesIsNeitherSentNorDeleted(): void
+    {
+        $requests = [];
+        $updater = $this->createRecordingUpdater('{}', $requests);
+        $doc = $updater->createDocument();
+        $doc->type = GenAiDocument::TYPE_GLOSSARY;
+        $doc->id = '40540';
+        $doc->source = 'internal';
+        $updater->addDocument($doc);
+
+        $updater->update();
+
+        $this->assertCount(0, $requests, 'nothing to send');
+    }
+
     public function testDocumentWithoutContentIsDeleted(): void
     {
         $requests = [];

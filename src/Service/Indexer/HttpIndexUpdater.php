@@ -19,7 +19,8 @@ use Psr\Log\NullLogger;
  * is not sent but deleted: the updater is the first to see the finished
  * document, with what the enrichers of other bundles added, and an article
  * that became empty has to leave the index with the incremental update, not
- * only with the purge of the next full run.
+ * only with the purge of the next full run. A glossary has no text, so it is
+ * sent if it has entries at all.
  */
 class HttpIndexUpdater implements IndexUpdater
 {
@@ -57,6 +58,17 @@ class HttpIndexUpdater implements IndexUpdater
                 'The GenAI index can only index a ' . GenAiDocument::class
                 . ', got ' . $document::class,
             );
+        }
+        if ($document->isGlossary()) {
+            if (empty($document->entries)) {
+                $this->logger->warning(
+                    'glossary {id}: {title} has no entries, not indexed',
+                    ['id' => $document->id, 'title' => $document->title],
+                );
+                return;
+            }
+            $this->documents[] = $document;
+            return;
         }
         if (!$this->contentBeyondTitle->suffices($document)) {
             $this->logger->info(
