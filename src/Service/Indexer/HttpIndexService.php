@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Atoolo\GenAi\Service\Indexer;
 
 use Atoolo\GenAi\Service\GenAiHttpClient;
+use Atoolo\GenAi\Service\Indexer\Config\GenAiConfigDocuments;
+use Atoolo\GenAi\Service\Indexer\Config\GenAiConfigIndexer;
 use Atoolo\Index\Service\Indexer\IndexService;
 use Atoolo\Index\Service\Indexer\IndexUpdater;
 use Atoolo\Resource\ResourceChannel;
@@ -19,6 +21,12 @@ use Psr\Log\NullLogger;
  * by its cores, so the index name of the resource channel is the channel
  * every document, delete and purge is sent with. Within a channel the
  * content is told apart by the `source` the indexer passes to each call.
+ *
+ * A full run of the internal resources also sends the glossaries and
+ * knowledge entries of `configs/genai`, see {@see GenAiConfigIndexer}: they
+ * belong to the source `internal` as well, so they are sent with the process
+ * id of the run right before the purge, which would remove them otherwise,
+ * or at the commit of the run if it does not purge.
  */
 class HttpIndexService implements IndexService
 {
@@ -27,7 +35,14 @@ class HttpIndexService implements IndexService
         private readonly ResourceChannel $resourceChannel,
         private readonly GenAiDocumentFactory $documentFactory,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?GenAiConfigIndexer $configIndexer = null,
     ) {}
+
+    /** Whether a full run of the internal resources is in progress. */
+    private bool $fullRun = false;
+
+    /** Whether the configuration was sent within the full run. */
+    private bool $configurationSent = false;
 
     /**
      * One index per channel: embedding models are multilingual, so the
@@ -68,18 +83,33 @@ class HttpIndexService implements IndexService
 
     /**
      * The GenAI application keeps no error protocol of its own, so there is
-     * nothing to prepare.
+     * nothing to prepare; a full run of the internal resources begins, which
+     * sends the configuration as well.
      */
     public function prepareIndexing(
         ResourceLanguage $lang,
         string $source,
-    ): void {}
+    ): void {
+        if ($source === GenAiConfigDocuments::SOURCE) {
+            $this->fullRun = true;
+            $this->configurationSent = false;
+        }
+    }
 
     public function deleteExcludingProcessId(
         ResourceLanguage $lang,
         string $source,
         string $processId,
     ): void {
+        if (
+            $this->fullRun
+            && !$this->configurationSent
+            && $source === GenAiConfigDocuments::SOURCE
+        ) {
+            // with the process id of the run, so that the purge keeps them
+            $this->configIndexer?->send($processId);
+            $this->configurationSent = true;
+        }
         $this->client->request(
             'POST',
             'api/index/purge',
@@ -114,9 +144,17 @@ class HttpIndexService implements IndexService
 
     /**
      * Documents are searchable as soon as the bulk request returns, so there
-     * is nothing to commit.
+     * is nothing to commit. A full run that did not purge sends the
+     * configuration now, with a process id of its own.
      */
-    public function commit(ResourceLanguage $lang): void {}
+    public function commit(ResourceLanguage $lang): void
+    {
+        if ($this->fullRun && !$this->configurationSent) {
+            $this->configIndexer?->send(uniqid('', true));
+        }
+        $this->fullRun = false;
+        $this->configurationSent = false;
+    }
 
     public function commitForAllLanguages(): void {}
 }

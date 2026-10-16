@@ -6,6 +6,7 @@ namespace Atoolo\GenAi\Test\Service\Indexer;
 
 use Atoolo\GenAi\Dto\Indexer\TextSection;
 use Atoolo\GenAi\Service\GenAiHttpClient;
+use Atoolo\GenAi\Service\Indexer\Config\GenAiConfigIndexer;
 use Atoolo\GenAi\Service\Indexer\GenAiDocument;
 use Atoolo\GenAi\Service\Indexer\GenAiDocumentFactory;
 use Atoolo\GenAi\Service\Indexer\HttpIndexService;
@@ -15,6 +16,7 @@ use Atoolo\Resource\ResourceLanguage;
 use Atoolo\Resource\ResourceTenant;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -195,6 +197,50 @@ class HttpIndexServiceTest extends TestCase
         );
     }
 
+    public function testAFullRunSendsTheConfigurationBeforeThePurge(): void
+    {
+        $configIndexer = $this->createMock(GenAiConfigIndexer::class);
+        $configIndexer->expects($this->once())
+            ->method('send')
+            ->with('p-1')
+            ->willReturnCallback(function (): int {
+                $this->requests[] = ['method' => 'send', 'url' => '', 'body' => ''];
+                return 2;
+            });
+        $service = $this->createService('{}', configIndexer: $configIndexer);
+
+        $service->prepareIndexing(ResourceLanguage::default(), 'internal');
+        $service->deleteExcludingProcessId(ResourceLanguage::default(), 'internal', 'p-1');
+        $service->commit(ResourceLanguage::default());
+
+        $this->assertEquals(
+            ['send', 'POST'],
+            array_column($this->requests, 'method'),
+            'the configuration with the run of the purge, then the purge',
+        );
+    }
+
+    public function testAFullRunWithoutPurgeSendsTheConfigurationAtTheCommit(): void
+    {
+        $configIndexer = $this->createMock(GenAiConfigIndexer::class);
+        $configIndexer->expects($this->once())->method('send');
+        $service = $this->createService('{}', configIndexer: $configIndexer);
+
+        $service->prepareIndexing(ResourceLanguage::default(), 'internal');
+        $service->commit(ResourceLanguage::default());
+        // the next run is an update
+        $service->commit(ResourceLanguage::default());
+    }
+
+    public function testAnUpdateSendsNoConfiguration(): void
+    {
+        $configIndexer = $this->createMock(GenAiConfigIndexer::class);
+        $configIndexer->expects($this->never())->method('send');
+        $service = $this->createService('{}', configIndexer: $configIndexer);
+
+        $service->commit(ResourceLanguage::default());
+    }
+
     public function testHealth(): void
     {
         $service = $this->createService('{"status":"UP"}');
@@ -217,6 +263,7 @@ class HttpIndexServiceTest extends TestCase
     private function createService(
         string $body,
         int $statusCode = 200,
+        ?GenAiConfigIndexer $configIndexer = null,
     ): HttpIndexService {
         $requests = &$this->requests;
         $httpClient = new MockHttpClient(
@@ -238,6 +285,8 @@ class HttpIndexServiceTest extends TestCase
             new GenAiHttpClient($httpClient, 'https://genai.example.com'),
             $this->createResourceChannel(),
             new GenAiDocumentFactory($this->createResourceChannel()),
+            new NullLogger(),
+            $configIndexer,
         );
     }
 

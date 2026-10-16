@@ -16,6 +16,33 @@ services:
       - '@atoolo_resource.resource_channel'
       - '@atoolo_genai.indexer.document_factory'
       - '@logger'
+      # a full run sends the glossaries and knowledge entries of configs/genai
+      - '@atoolo_genai.indexer.config_indexer'
+
+  atoolo_genai.indexer.config_documents:
+    class: Atoolo\GenAi\Service\Indexer\Config\GenAiConfigDocuments
+    arguments:
+      - '@atoolo_resource.resource_channel'
+      - '@atoolo_genai.indexer.document_factory'
+      - '@logger'
+
+  atoolo_genai.indexer.config_indexer:
+    class: Atoolo\GenAi\Service\Indexer\Config\GenAiConfigIndexer
+    arguments:
+      - '@atoolo_genai.indexer.config_documents'
+      - '@atoolo_genai.client'
+      - '@atoolo_genai.indexer.document_factory'
+      - '@logger'
+
+  # a change of configs/genai, which the indexer of the resources passes over
+  atoolo_genai.indexer.config_change_handler:
+    class: Atoolo\GenAi\Service\Indexer\Config\GenAiConfigChangeHandler
+    arguments:
+      - '@atoolo_genai.indexer.internal_resource_indexer'
+      - '@atoolo_genai.indexer.config_indexer'
+      - '@logger'
+    tags:
+      - { name: 'atoolo_resource.resource_change_handler' }
 
   Atoolo\GenAi\Service\Indexer\SiteKit\DefaultGenAiDocumentEnricher:
     arguments:
