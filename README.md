@@ -70,6 +70,41 @@ by default; within that time the feedback can be set, changed or withdrawn
 `false`. An answer without a token cannot be rated. Keep the token in
 the memory of the page only, never in `localStorage` or the URL.
 
+## Glossary and knowledge entries of the configuration
+
+The CMS keeps a glossary and knowledge entries as configuration of the
+resource channel, in `configs/genai/glossary/*.php` and
+`configs/genai/knowledge/*.php`. The GenAI indexer sends them to the GenAI
+application with the internal resources: a full run sends all of them, a
+reported change of one of the files sends them again, and a removed one is
+deleted by the id of its resource.
+
+```php
+// configs/genai/glossary/<name>.php: one glossary
+<?php return [
+    'id' => 40540,                     // id of the CMS resource
+    'title' => 'Stadtteile',           // optional, else the file name
+    'definitions' => [
+        ['terms' => ['OB'], 'definition' => 'Oberbürgermeister'],
+        ['terms' => ['perso', 'persi'], 'definition' => 'Personalausweis'],
+    ],
+];
+
+// configs/genai/knowledge/<name>.php: one knowledge entry
+<?php return [
+    'id' => 40541,
+    'headline' => 'Stuttgart 21 – Aktueller Stand',
+    'keywords' => ['S21'],             // optional
+    'text' => ['modelType' => 'html.richText', 'text' => '<p>…</p>'],
+];
+```
+
+The glossaries of a channel together are the glossary the application
+normalizes and searches its questions with: a question with a term is
+searched with what the pages call it. A term must contain neither a comma nor
+an equals sign. Only the German files are read; a file without `id`, or
+without entries or text, is skipped with a warning in the log.
+
 ## Busy index
 
 The GenAI application lets one request at a time write a source. A request

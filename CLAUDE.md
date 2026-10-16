@@ -37,7 +37,7 @@ assistant.
 
 - `GenAiDocument` — the payload. Its property names **are** the JSON keys, so
   the mapping lives nowhere else. `jsonSerialize()` drops null fields and
-  empty lists and formats the date as `DATE_ATOM`. The application knows three
+  empty lists and formats the date as `DATE_ATOM`. The application knows four
   kinds of document and picks them by `type`: an `article` carries the
   sections it is made of, a `media` the text the CMS extracted from a binary
   asset, a `knowledge` entry one HTML `text` without url, date, categories or
@@ -47,10 +47,37 @@ assistant.
   headline, and leaves the link sections out. Resources of the object types
   in `GENAI_KNOWLEDGE_OBJECT_TYPES` are knowledge entries, sent by the same
   indexer with the same source, as their ids differ from those of the
-  articles. All kinds live in this one class, because the enricher receives the
+  articles. A `glossary` carries `entries` only, each with `terms` and an
+  `expansion`: the application normalizes and searches the questions of the
+  channel with them, it neither chunks nor embeds a glossary, and the updater
+  sends one if it has entries at all. All kinds live in this one class, because the enricher receives the
   document from the factory before it has seen the resource and may only fill
   it in, never exchange it - the port types `enrichDocument()` as returning
   what it was given.
+- `Config\GenAiConfigDocuments` — reads the glossaries and knowledge entries
+  the CMS keeps as configuration of the resource channel, in
+  `configDir/genai/glossary/*.php` and `configDir/genai/knowledge/*.php`. Each
+  file returns an array and carries the `id` of its CMS resource, the id of the
+  document; a glossary has a `title` (else the file name) and `definitions` of
+  `terms` and a `definition`, a knowledge entry a `headline`, `keywords` and
+  the HTML in `text.text`. Only the German files are read, the `*.translations`
+  are left out; a file without id or content, or one that cannot be read, is
+  skipped with a warning. They are data of the internal resource channel, so
+  their source is `internal`.
+- `Config\GenAiConfigIndexer` — sends all of them for a run; unchanged ones
+  only move to the run, see the hash below. `HttpIndexService` calls it in a
+  full run: `prepareIndexing()` marks the run, `deleteExcludingProcessId()`
+  sends them with the process id of the run right before the purge of the
+  source `internal`, which would remove them otherwise, and `commit()` sends
+  them with a process id of their own if the run did not purge. An update run
+  sends none.
+- `Config\GenAiConfigChangeHandler` — a `ResourceChangeHandler`: the indexer of
+  the resources only finds the paths of the resource directory, so a reported
+  change of `genai/glossary/` or `genai/knowledge/` (with or without the
+  leading `/configs`) sends the configuration again, deferred while the GenAI
+  indexer runs a full index. A removed file needs nothing of its own: the CMS
+  reports the id of its resource, and `remove()` of the GenAI indexer deletes
+  it from the source `internal`.
 - `Dto\Indexer\` — the parts of a document: `Category` (a tree, through
   `parent`), `TextSection` (`headline` + `html`), `LinkSection`
   (`headline` + `Link[]`).
