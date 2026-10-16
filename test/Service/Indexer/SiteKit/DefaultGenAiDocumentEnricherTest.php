@@ -100,6 +100,37 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
         );
     }
 
+    public function testAMediumInAMediaContainerGetsACompositeId(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'id' => '123',
+            'media' => true,
+            'mediaContainer' => ['id' => 456],
+        ]));
+
+        $this->assertEquals('456-123', $doc->id, 'unexpected id');
+    }
+
+    public function testAMediumWithoutAMediaContainerKeepsItsId(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'id' => '123',
+            'media' => true,
+        ]));
+
+        $this->assertEquals('123', $doc->id, 'unexpected id');
+    }
+
+    public function testAnArticleIgnoresTheMediaContainer(): void
+    {
+        $doc = $this->enrichWithResource($this->createResource([
+            'id' => '123',
+            'mediaContainer' => ['id' => 456],
+        ]));
+
+        $this->assertEquals('123', $doc->id, 'unexpected id');
+    }
+
     public function testKeywordsAndBoostKeywords(): void
     {
         $doc = $this->enrichWithData([
@@ -1392,6 +1423,7 @@ class DefaultGenAiDocumentEnricherTest extends TestCase
     private function createResource(array $data): Resource
     {
         return new Resource(
+            is_string($data['url'] ?? null) ? $data['url'] : '',
             is_string($data['url'] ?? null) ? $data['url'] : '',
             is_string($data['id'] ?? null) ? $data['id'] : '123',
             is_string($data['name'] ?? null) ? $data['name'] : '',

@@ -59,6 +59,7 @@ class ChannelLanguageFilterTest extends TestCase
     {
         return new Resource(
             '/a/b.php',
+            '/a/b.php',
             '123',
             'b',
             'content',
