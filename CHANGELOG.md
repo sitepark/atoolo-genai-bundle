@@ -40,7 +40,10 @@
   `['id' => …, 'title' => …, 'definitions' => [['terms' => […], 'definition'
   => …]]]`, a knowledge file `['id' => …, 'headline' => …, 'keywords' => […],
   'text' => ['text' => '<p>…</p>']]`; only the German files are read.
-  Requires the GenAI application with glossary documents (commit `788d305`).
+  A change counts if the CMS reports it with the publication type `CONFIG`
+  (IES 3.27 with the ies-webnode admin module). Requires the GenAI
+  application with glossary documents (commit `788d305`) and
+  `atoolo/resource-bundle` with the publication type of a change.
 - Resources of the object types in `GENAI_KNOWLEDGE_OBJECT_TYPES` (comma
   separated, empty by default) are sent as knowledge entries of the type
   `knowledge`: one HTML text of the intro and the text sections, without

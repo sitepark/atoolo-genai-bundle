@@ -22,16 +22,25 @@ class GenAiConfigChangeHandlerTest extends TestCase
         $configIndexer->expects($this->once())->method('send');
 
         $this->handler(enabled: true, indexing: false, configIndexer: $configIndexer)
-            ->handle($this->changed('/configs/genai/glossary/stadtteile.php'));
+            ->handle($this->changed('/genai/glossary/stadtteile.php', 'CONFIG'));
     }
 
-    public function testAChangedKnowledgeEntryWithoutPrefixSendsTheConfiguration(): void
+    public function testAChangedKnowledgeEntrySendsTheConfiguration(): void
     {
         $configIndexer = $this->createMock(GenAiConfigIndexer::class);
         $configIndexer->expects($this->once())->method('send');
 
         $this->handler(enabled: true, indexing: false, configIndexer: $configIndexer)
-            ->handle($this->changed('genai/knowledge/bahnhof-21.php'));
+            ->handle($this->changed('/genai/knowledge/bahnhof-21.php', 'CONFIG'));
+    }
+
+    public function testAChangeWithoutPublicationTypeNamesTheConfigurationDirectory(): void
+    {
+        $configIndexer = $this->createMock(GenAiConfigIndexer::class);
+        $configIndexer->expects($this->once())->method('send');
+
+        $this->handler(enabled: true, indexing: false, configIndexer: $configIndexer)
+            ->handle($this->changed('/configs/genai/glossary/stadtteile.php'));
     }
 
     public function testOtherChangesSendNothing(): void
@@ -42,8 +51,11 @@ class GenAiConfigChangeHandlerTest extends TestCase
 
         $handler->handle($this->changed('/leben/buergerservice.php'));
         $handler->handle(
-            $this->changed('/configs/genai/glossary/stadtteile.translations/en_US.php'),
+            $this->changed('/genai/glossary/stadtteile.php.translations/en_US.php', 'CONFIG'),
         );
+        $handler->handle($this->changed('/genai/glossary/stadtteile.php', 'OBJECT'));
+        $handler->handle($this->changed('/genai/glossary/stadtteile.php'));
+        $handler->handle($this->changed('/other/settings.php', 'CONFIG'));
         $handler->handle(new ResourceChanges([], ['40540']));
     }
 
@@ -54,7 +66,7 @@ class GenAiConfigChangeHandlerTest extends TestCase
 
         $this->expectException(ResourceChangeDeferredException::class);
         $this->handler(enabled: true, indexing: true, configIndexer: $configIndexer)
-            ->handle($this->changed('/configs/genai/glossary/stadtteile.php'));
+            ->handle($this->changed('/genai/glossary/stadtteile.php', 'CONFIG'));
     }
 
     public function testWithoutGenAiIndexerNothingIsSent(): void
@@ -77,8 +89,8 @@ class GenAiConfigChangeHandlerTest extends TestCase
         return new GenAiConfigChangeHandler($indexer, $configIndexer);
     }
 
-    private function changed(string $path): ResourceChanges
+    private function changed(string $path, ?string $publicationType = null): ResourceChanges
     {
-        return new ResourceChanges([new ResourceChange('1', $path)]);
+        return new ResourceChanges([new ResourceChange('1', $path, $publicationType)]);
     }
 }

@@ -72,9 +72,10 @@ assistant.
   them with a process id of their own if the run did not purge. An update run
   sends none.
 - `Config\GenAiConfigChangeHandler` — a `ResourceChangeHandler`: the indexer of
-  the resources only finds the paths of the resource directory, so a reported
-  change of `genai/glossary/` or `genai/knowledge/` (with or without the
-  leading `/configs`) sends the configuration again, deferred while the GenAI
+  the resources only indexes the files of the resource directory, so a
+  reported change of `/genai/glossary/` or `/genai/knowledge/` with the
+  publication type `CONFIG` (or, without publication type, of
+  `/configs/genai/…`) sends the configuration again, deferred while the GenAI
   indexer runs a full index. A removed file needs nothing of its own: the CMS
   reports the id of its resource, and `remove()` of the GenAI indexer deletes
   it from the source `internal`.

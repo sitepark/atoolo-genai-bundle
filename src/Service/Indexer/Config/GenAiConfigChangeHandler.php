@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atoolo\GenAi\Service\Indexer\Config;
 
 use Atoolo\Index\Service\Indexer\InternalResourceIndexer;
+use Atoolo\Resource\Change\ResourceChange;
 use Atoolo\Resource\Change\ResourceChangeDeferredException;
 use Atoolo\Resource\Change\ResourceChangeHandler;
 use Atoolo\Resource\Change\ResourceChanges;
@@ -14,8 +15,14 @@ use Psr\Log\NullLogger;
 /**
  * Sends the glossaries and knowledge entries of `configs/genai` again when
  * the CMS reports a change of one of them. The indexer of the resources only
- * finds the paths of the resource directory, so it passes over the changed
+ * indexes the files of the resource directory, so it passes over the changed
  * configuration.
+ *
+ * The CMS reports the file of a configuration with the publication type
+ * `CONFIG` and its path below the configuration directory, e.g.
+ * `/genai/glossary/stadtteile.php`. A change without publication type counts
+ * if its path names the configuration directory, e.g.
+ * `/configs/genai/glossary/stadtteile.php`.
  *
  * A removed glossary or knowledge entry needs nothing of its own: the CMS
  * reports the id of its resource, which is the id of the document, and the
@@ -27,11 +34,13 @@ use Psr\Log\NullLogger;
 class GenAiConfigChangeHandler implements ResourceChangeHandler
 {
     /**
-     * A German file of a glossary or knowledge entry, with or without the
-     * leading directory of the configuration; the translations lie a level
-     * deeper and do not match.
+     * A German file of a glossary or knowledge entry below the configuration
+     * directory; the translations lie a level deeper and do not match.
      */
-    private const PATH = '#(^|/)genai/(glossary|knowledge)/[^/]+\\.php$#';
+    private const PATH = '#^/genai/(glossary|knowledge)/[^/]+\\.php$#';
+
+    /** The same file, reported without publication type. */
+    private const UNTYPED_PATH = '#^/configs/genai/(glossary|knowledge)/[^/]+\\.php$#';
 
     public function __construct(
         private readonly InternalResourceIndexer $indexer,
@@ -57,8 +66,13 @@ class GenAiConfigChangeHandler implements ResourceChangeHandler
 
     private function concernsConfiguration(ResourceChanges $changes): bool
     {
-        foreach ($changes->changedPaths() as $path) {
-            if (preg_match(self::PATH, $path) === 1) {
+        foreach ($changes->changed as $change) {
+            $pattern = match ($change->publicationType) {
+                ResourceChange::PUBLICATION_TYPE_CONFIG => self::PATH,
+                null => self::UNTYPED_PATH,
+                default => null,
+            };
+            if ($pattern !== null && preg_match($pattern, $change->path) === 1) {
                 return true;
             }
         }
