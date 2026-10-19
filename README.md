@@ -76,7 +76,7 @@ The CMS keeps a glossary and knowledge entries as configuration of the
 resource channel, in `configs/genai/glossary/*.php` and
 `configs/genai/knowledge/*.php`. The GenAI indexer sends them to the GenAI
 application with the internal resources: a full run sends all of them, a
-reported change of one of the files sends them again, and a removed one is
+reported change of one of the files sends that file again, and a removed one is
 deleted by the id of its resource. The CMS reports a change of a file as one
 of the publication type `CONFIG`, which needs IES 3.27 with the ies-webnode
 admin module; an older CMS reports the publication of a configuration as a

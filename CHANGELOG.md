@@ -35,7 +35,7 @@
 - The glossaries and knowledge entries the CMS keeps in `configs/genai` of the
   resource channel are sent to the GenAI application, as documents of the
   types `glossary` and `knowledge` of the source `internal`: a full run sends
-  all of them, a reported change of one of the files sends them again, and a
+  all of them, a reported change of one of the files sends that file again, and a
   removed one is deleted by the id of its resource. A glossary file returns
   `['id' => …, 'title' => …, 'definitions' => [['terms' => […], 'definition'
   => …]]]`, a knowledge file `['id' => …, 'headline' => …, 'keywords' => […],

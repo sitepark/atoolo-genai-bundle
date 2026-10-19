@@ -48,6 +48,13 @@ class GenAiConfigDocuments
     /** The source of the documents, the one of the internal resources. */
     public const SOURCE = 'internal';
 
+    /**
+     * The path of a German file of a glossary or knowledge entry below the
+     * configuration directory, with its kind; the translations lie a level
+     * deeper and do not match.
+     */
+    public const PATH = '#^/genai/(glossary|knowledge)/[^/]+\\.php$#';
+
     public function __construct(
         private readonly ResourceChannel $resourceChannel,
         private readonly GenAiDocumentFactory $documentFactory,
@@ -63,21 +70,54 @@ class GenAiConfigDocuments
     public function documents(string $processId): array
     {
         $documents = [];
-        foreach ($this->files('glossary') as $file) {
-            $data = $this->load($file);
-            $document = $data === null ? null : $this->glossary($file, $data);
-            if ($document !== null) {
-                $documents[] = $this->withRun($document, $processId);
+        foreach (['glossary', 'knowledge'] as $kind) {
+            foreach ($this->files($kind) as $file) {
+                $document = $this->document($kind, $file);
+                if ($document !== null) {
+                    $documents[] = $this->withRun($document, $processId);
+                }
             }
         }
-        foreach ($this->files('knowledge') as $file) {
-            $data = $this->load($file);
-            $document = $data === null ? null : $this->knowledge($file, $data);
+        return $documents;
+    }
+
+    /**
+     * The glossaries and knowledge entries of the given files, written for
+     * the run `$processId`. A path is relative to the configuration
+     * directory, e.g. `/genai/glossary/stadtteile.php`; one that names no
+     * such file, or one that no longer exists, is left out.
+     *
+     * @param list<string> $paths
+     * @return list<GenAiDocument>
+     */
+    public function documentsOf(array $paths, string $processId): array
+    {
+        $documents = [];
+        foreach (array_unique($paths) as $path) {
+            if (preg_match(self::PATH, $path, $match) !== 1) {
+                continue;
+            }
+            $file = $this->resourceChannel->configDir . $path;
+            if (!is_file($file)) {
+                continue;
+            }
+            $document = $this->document($match[1], $file);
             if ($document !== null) {
                 $documents[] = $this->withRun($document, $processId);
             }
         }
         return $documents;
+    }
+
+    private function document(string $kind, string $file): ?GenAiDocument
+    {
+        $data = $this->load($file);
+        if ($data === null) {
+            return null;
+        }
+        return $kind === 'glossary'
+            ? $this->glossary($file, $data)
+            : $this->knowledge($file, $data);
     }
 
     /**

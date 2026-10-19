@@ -13,10 +13,10 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Sends the glossaries and knowledge entries of `configs/genai` again when
- * the CMS reports a change of one of them. The indexer of the resources only
- * indexes the files of the resource directory, so it passes over the changed
- * configuration.
+ * Sends a glossary or knowledge entry of `configs/genai` again when the CMS
+ * reports a change of its file; the other files stay as they are. The
+ * indexer of the resources only indexes the files of the resource directory,
+ * so it passes over the changed configuration.
  *
  * The CMS reports the file of a configuration with the publication type
  * `CONFIG` and its path below the configuration directory, e.g.
@@ -33,14 +33,8 @@ use Psr\Log\NullLogger;
  */
 class GenAiConfigChangeHandler implements ResourceChangeHandler
 {
-    /**
-     * A German file of a glossary or knowledge entry below the configuration
-     * directory; the translations lie a level deeper and do not match.
-     */
-    private const PATH = '#^/genai/(glossary|knowledge)/[^/]+\\.php$#';
-
-    /** The same file, reported without publication type. */
-    private const UNTYPED_PATH = '#^/configs/genai/(glossary|knowledge)/[^/]+\\.php$#';
+    /** The directory of the configuration, which a path without type names. */
+    private const CONFIG_DIR = '/configs';
 
     public function __construct(
         private readonly InternalResourceIndexer $indexer,
@@ -50,7 +44,8 @@ class GenAiConfigChangeHandler implements ResourceChangeHandler
 
     public function handle(ResourceChanges $changes): void
     {
-        if (!$this->indexer->enabled() || !$this->concernsConfiguration($changes)) {
+        $paths = $this->changedPaths($changes);
+        if (!$this->indexer->enabled() || empty($paths)) {
             return;
         }
         if ($this->indexer->isIndexing()) {
@@ -58,24 +53,34 @@ class GenAiConfigChangeHandler implements ResourceChangeHandler
                 'the GenAI indexer is running',
             );
         }
-        $sent = $this->configIndexer->send(uniqid('', true));
+        $sent = $this->configIndexer->sendFiles($paths, uniqid('', true));
         $this->logger->info('genai configuration changed, {count} documents sent', [
             'count' => $sent,
+            'paths' => $paths,
         ]);
     }
 
-    private function concernsConfiguration(ResourceChanges $changes): bool
+    /**
+     * The changed glossaries and knowledge entries, by their paths below the
+     * configuration directory.
+     *
+     * @return list<string>
+     */
+    private function changedPaths(ResourceChanges $changes): array
     {
+        $paths = [];
         foreach ($changes->changed as $change) {
-            $pattern = match ($change->publicationType) {
-                ResourceChange::PUBLICATION_TYPE_CONFIG => self::PATH,
-                null => self::UNTYPED_PATH,
+            $path = match ($change->publicationType) {
+                ResourceChange::PUBLICATION_TYPE_CONFIG => $change->path,
+                null => str_starts_with($change->path, self::CONFIG_DIR . '/')
+                    ? substr($change->path, strlen(self::CONFIG_DIR))
+                    : null,
                 default => null,
             };
-            if ($pattern !== null && preg_match($pattern, $change->path) === 1) {
-                return true;
+            if ($path !== null && preg_match(GenAiConfigDocuments::PATH, $path) === 1) {
+                $paths[$path] = $path;
             }
         }
-        return false;
+        return array_values($paths);
     }
 }

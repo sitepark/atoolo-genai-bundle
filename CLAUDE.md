@@ -64,8 +64,8 @@ assistant.
   are left out; a file without id or content, or one that cannot be read, is
   skipped with a warning. They are data of the internal resource channel, so
   their source is `internal`.
-- `Config\GenAiConfigIndexer` — sends all of them for a run; unchanged ones
-  only move to the run, see the hash below. `HttpIndexService` calls it in a
+- `Config\GenAiConfigIndexer` — sends all of them for a run, `sendFiles()` the
+  changed files only; unchanged ones only move to the run, see the hash below. `HttpIndexService` calls it in a
   full run: `prepareIndexing()` marks the run, `deleteExcludingProcessId()`
   sends them with the process id of the run right before the purge of the
   source `internal`, which would remove them otherwise, and `commit()` sends
@@ -75,7 +75,7 @@ assistant.
   the resources only indexes the files of the resource directory, so a
   reported change of `/genai/glossary/` or `/genai/knowledge/` with the
   publication type `CONFIG` (or, without publication type, of
-  `/configs/genai/…`) sends the configuration again, deferred while the GenAI
+  `/configs/genai/…`) sends the changed files again, deferred while the GenAI
   indexer runs a full index. A removed file needs nothing of its own: the CMS
   reports the id of its resource, and `remove()` of the GenAI indexer deletes
   it from the source `internal`.

@@ -151,6 +151,41 @@ class GenAiConfigDocumentsTest extends TestCase
         );
     }
 
+    public function testDocumentsOfTheGivenFiles(): void
+    {
+        $this->write('glossary/stadtteile.php', [
+            'id' => 40540,
+            'definitions' => [['terms' => ['OB'], 'definition' => 'Oberbürgermeister']],
+        ]);
+        $this->write('glossary/aemter.php', [
+            'id' => 40542,
+            'definitions' => [['terms' => ['BB'], 'definition' => 'Bürgerbüro']],
+        ]);
+        $this->write('knowledge/bahnhof-21.php', [
+            'id' => 40541,
+            'headline' => 'Stuttgart 21',
+            'text' => ['text' => '<p>Der Bahnhof</p>'],
+        ]);
+
+        $documents = $this->documents()->documentsOf(
+            [
+                '/genai/glossary/stadtteile.php',
+                '/genai/knowledge/bahnhof-21.php',
+                '/genai/glossary/geloescht.php',
+                '/genai/other/stadtteile.php',
+            ],
+            'p1',
+        );
+
+        $this->assertEquals(
+            ['40540', '40541'],
+            array_map(static fn($document) => $document->id, $documents),
+            'only the existing files given',
+        );
+        $this->assertTrue($documents[1]->isKnowledge(), 'the kind by the directory');
+        $this->assertEquals('p1', $documents[0]->processId, 'the run');
+    }
+
     public function testWithoutConfigurationThereAreNoDocuments(): void
     {
         $this->remove($this->configDir);
