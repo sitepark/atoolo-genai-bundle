@@ -12,6 +12,13 @@ use Atoolo\Resource\ResourceLanguage;
  */
 class Question
 {
+    /**
+     * The most characters the GenAI application accepts as a question,
+     * counted as Java does - in UTF-16 code units - and without the
+     * whitespace around it.
+     */
+    public const MAX_LENGTH = 1000;
+
     public readonly ResourceLanguage $lang;
 
     /**

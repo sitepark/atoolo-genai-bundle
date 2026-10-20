@@ -118,7 +118,7 @@ class HttpAssistant implements Assistant
         $start = microtime(true);
 
         $variables = [
-            'query' => $question->text,
+            'query' => $this->query($question->text),
             'language' => $this->language($question->lang),
             'channel' => $this->resourceChannel->searchIndex,
         ];
@@ -218,9 +218,44 @@ class HttpAssistant implements Assistant
     }
 
     /**
+     * The question as the application takes it: without the whitespace
+     * around it, at most {@see Question::MAX_LENGTH} characters. A longer one
+     * is refused here, so that it neither counts to the rate limit nor
+     * reaches the size limit of the requests of the application.
+     *
+     * @throws AssistantException if the question is too long
+     */
+    private function query(string $text): string
+    {
+        // a text that is no valid UTF-8 is left to the application
+        $stripped = preg_replace('/^[\s\p{Z}]+|[\s\p{Z}]+$/u', '', $text)
+            ?? $text;
+        $codePoints = preg_match_all('/./su', $stripped);
+        // a character beyond the Basic Multilingual Plane counts twice in Java
+        $supplementary = preg_match_all(
+            '/[\x{10000}-\x{10FFFF}]/u',
+            $stripped,
+        );
+        if (
+            $codePoints !== false
+            && $supplementary !== false
+            && $codePoints + $supplementary > Question::MAX_LENGTH
+        ) {
+            throw new AssistantException(
+                'query must not be longer than '
+                . Question::MAX_LENGTH . ' characters',
+                AssistantErrorType::BAD_REQUEST,
+            );
+        }
+        return $stripped;
+    }
+
+    /**
      * Keeps the errors the application hands to the caller - a question it
-     * does not accept, too many questions - with its message; anything else
-     * is an internal error whose message is meant for the log only.
+     * does not accept, too many questions, answers switched off - with its
+     * message, and so the statuses of the same meaning a proxy in front of
+     * it may answer with. Anything else is an internal error whose message
+     * is meant for the log only.
      */
     private function toAssistantException(
         string $prefix,
@@ -232,11 +267,35 @@ class HttpAssistant implements Assistant
                     => AssistantErrorType::BAD_REQUEST,
                 AssistantErrorType::TOO_MANY_REQUESTS->value
                     => AssistantErrorType::TOO_MANY_REQUESTS,
+                AssistantErrorType::SERVICE_UNAVAILABLE->value
+                    => AssistantErrorType::SERVICE_UNAVAILABLE,
                 default => null,
             };
             if ($type !== null) {
                 return new AssistantException($e->reason, $type, $e);
             }
+        }
+        $status = match ($e->getStatusCode()) {
+            413 => new AssistantException(
+                'The request is too large for the GenAI application',
+                AssistantErrorType::BAD_REQUEST,
+                $e,
+            ),
+            429 => new AssistantException(
+                'Too many requests to the GenAI application, try again later',
+                AssistantErrorType::TOO_MANY_REQUESTS,
+                $e,
+            ),
+            503 => new AssistantException(
+                'The GenAI application answers no questions at the moment, '
+                . 'try again later',
+                AssistantErrorType::SERVICE_UNAVAILABLE,
+                $e,
+            ),
+            default => null,
+        };
+        if ($status !== null) {
+            return $status;
         }
         return new AssistantException(
             $prefix . $e->getMessage(),

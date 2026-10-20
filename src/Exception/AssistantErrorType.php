@@ -18,9 +18,15 @@ enum AssistantErrorType: string
     case BAD_REQUEST = 'BAD_REQUEST';
     /**
      * The client, or all clients together, asked too many questions in the
-     * last minute; it may ask again later.
+     * last minute, or too many are answered at the moment; it may ask again
+     * later.
      */
     case TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS';
+    /**
+     * The application answers no questions at the moment, e.g. an admin
+     * switched the answers off; it may ask again later.
+     */
+    case SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE';
     /** Anything else: the application is not reachable or failed. */
     case INTERNAL_ERROR = 'INTERNAL_ERROR';
 }

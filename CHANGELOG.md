@@ -73,3 +73,12 @@
 - An index request the GenAI application refuses with `409`, because another
   run writes the same source, is sent again after 15, 30 and 60 seconds
   (`GENAI_BUSY_RETRIES`) instead of aborting the index run.
+- A question is sent without the whitespace around it, as the GenAI
+  application keeps it, and one longer than 1000 characters is refused with
+  `BAD_REQUEST` before it is asked: it no longer counts to the rate limit of
+  the application or reaches its size limit of the requests.
+- Answers switched off by an admin of the GenAI application fail with the new
+  classification `SERVICE_UNAVAILABLE` (`AssistantErrorType::SERVICE_UNAVAILABLE`)
+  instead of `INTERNAL_ERROR`, and are not logged as an error. An HTTP 413,
+  429 or 503 of the application or a proxy in front of it counts as
+  `BAD_REQUEST`, `TOO_MANY_REQUESTS` or `SERVICE_UNAVAILABLE`.

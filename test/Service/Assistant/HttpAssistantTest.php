@@ -382,6 +382,64 @@ class HttpAssistantTest extends TestCase
         );
     }
 
+    public function testAskSendsTheQuestionWithoutTheWhitespaceAroundIt(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+
+        $assistant->ask(new Question(" \n\twhy?\u{3000} "));
+
+        $this->assertSame(
+            'why?',
+            $this->variables()['query'] ?? null,
+            'the application keeps the question stripped, so it should be '
+            . 'sent so',
+        );
+    }
+
+    public function testAskRefusesATooLongQuestionWithoutAskingTheApplication(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+
+        try {
+            $assistant->ask(new Question(
+                str_repeat('a', Question::MAX_LENGTH + 1),
+            ));
+            $this->fail('a too long question should throw');
+        } catch (AssistantException $e) {
+            $this->assertEquals(
+                [AssistantErrorType::BAD_REQUEST, []],
+                [$e->type, $this->requests],
+                'a too long question should be refused as the application '
+                . 'would, without a request that counts to its rate limit',
+            );
+        }
+    }
+
+    public function testAskCountsTheLengthAsTheApplicationDoes(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+        $padded = str_repeat(' ', 50) . str_repeat('ä', Question::MAX_LENGTH)
+            . str_repeat(' ', 50);
+
+        $assistant->ask(new Question($padded));
+
+        $this->assertCount(
+            1,
+            $this->requests,
+            'umlauts count once and the whitespace around not at all',
+        );
+    }
+
+    public function testAskCountsACharacterBeyondTheBasicPlaneTwice(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+
+        $this->expectException(AssistantException::class);
+        $assistant->ask(new Question(
+            str_repeat("\u{1F600}", Question::MAX_LENGTH / 2 + 1),
+        ));
+    }
+
     public function testAskSkipsIncompleteParts(): void
     {
         $assistant = $this->createAssistant(json_encode(['data' => [
@@ -537,6 +595,11 @@ class HttpAssistantTest extends TestCase
                 AssistantErrorType::TOO_MANY_REQUESTS,
                 'The question is too long',
             ],
+            'service unavailable' => [
+                'SERVICE_UNAVAILABLE',
+                AssistantErrorType::SERVICE_UNAVAILABLE,
+                'The question is too long',
+            ],
             'unauthorized' => [
                 'UNAUTHORIZED',
                 AssistantErrorType::INTERNAL_ERROR,
@@ -573,9 +636,42 @@ class HttpAssistantTest extends TestCase
         }
     }
 
+    /**
+     * @return array<string,array{int,AssistantErrorType}>
+     */
+    public static function statusesOfTheCaller(): array
+    {
+        return [
+            'too large' => [413, AssistantErrorType::BAD_REQUEST],
+            'too many requests' => [429, AssistantErrorType::TOO_MANY_REQUESTS],
+            'unavailable' => [503, AssistantErrorType::SERVICE_UNAVAILABLE],
+        ];
+    }
+
+    #[DataProvider('statusesOfTheCaller')]
+    public function testStatusOfTheCallerKeepsItsMeaning(
+        int $status,
+        AssistantErrorType $expectedType,
+    ): void {
+        $assistant = $this->createAssistant('', $status);
+
+        try {
+            $assistant->ask(new Question('why?'));
+            $this->fail('a failed request should throw');
+        } catch (AssistantException $e) {
+            $this->assertEquals(
+                $expectedType,
+                $e->type,
+                'a status the application or a proxy answers for the '
+                . 'caller should keep its meaning instead of an internal '
+                . 'error',
+            );
+        }
+    }
+
     public function testRequestErrorIsAnInternalError(): void
     {
-        $assistant = $this->createAssistant('{}', 503);
+        $assistant = $this->createAssistant('{}', 500);
 
         try {
             $assistant->feedback('t-1', AnswerFeedback::GOOD);

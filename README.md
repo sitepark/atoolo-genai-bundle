@@ -52,10 +52,15 @@ question; with hints how to ask more precisely and suggested questions),
 `GenAiAnswerCutOffError` (the answer became too long and was discarded) or
 `GenAiUnansweredError` (an error of the GenAI application this version of the
 bundle does not know yet). Every result can be rated with its
-`feedbackToken`. A question that cannot be asked at all - too long, too many
-requests, the application not available - is a GraphQL error in `errors`
-with `extensions.classification` `BAD_REQUEST`, `TOO_MANY_REQUESTS` or
-`INTERNAL_ERROR`.
+`feedbackToken`. A question that cannot be asked at all is a GraphQL error in
+`errors` with `extensions.classification`: `BAD_REQUEST` (e.g. longer than
+1000 characters without the whitespace around it; refused by the bundle
+before it asks), `TOO_MANY_REQUESTS` (too many questions now, ask again
+later), `SERVICE_UNAVAILABLE` (the application answers no questions at the
+moment, e.g. an admin switched them off; ask again later) or
+`INTERNAL_ERROR` (the application failed or is not reachable). An HTTP 413,
+429 or 503 of the application or a proxy in front of it counts as
+`BAD_REQUEST`, `TOO_MANY_REQUESTS` or `SERVICE_UNAVAILABLE`.
 
 ```graphql
 mutation {
