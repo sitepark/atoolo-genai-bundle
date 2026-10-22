@@ -33,7 +33,7 @@ class AssistantTest extends TestCase
                 static fn(Question $question) => $question->text === 'why?'
                     && $question->lang->code === 'en'
                     && $question->categoryIds === ['10']
-                    && $question->archive,
+                    && $question->archive === true,
             ))
             ->willReturn($answer);
 
@@ -70,7 +70,7 @@ class AssistantTest extends TestCase
             ->with($this->callback(
                 static fn(Question $question) => $question->lang->code === ''
                     && $question->categoryIds === []
-                    && !$question->archive
+                    && $question->archive === null
                     && $question->filter === null,
             ))
             ->willReturn(new Answer());

@@ -26,8 +26,8 @@ class Question
      *   the channel if not given
      * @param string[] $categoryIds category ids the retrieved documents are
      *   restricted to; a parent category also matches its subcategories
-     * @param bool $archive whether archived documents may answer the
-     *   question as well
+     * @param ?bool $archive whether archived documents may answer the
+     *   question as well; null for the setting answer.archive of the channel
      * @param ?QuestionFilter[] $filter further conditions on the documents,
      *   combined with AND; null for the default filter of the project, an
      *   empty list for none at all
@@ -36,7 +36,7 @@ class Question
         public readonly string $text,
         ?ResourceLanguage $lang = null,
         public readonly array $categoryIds = [],
-        public readonly bool $archive = false,
+        public readonly ?bool $archive = null,
         public readonly ?array $filter = null,
     ) {
         $this->lang = $lang ?? ResourceLanguage::default();

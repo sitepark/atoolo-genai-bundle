@@ -32,6 +32,12 @@
 
 ### Features
 
+- `genAiQuestion` takes `archive` as a tri-state: true and false are sent to
+  the GenAI application as given, without it the server setting
+  `answer.archive` of the channel applies (archived resources included unless
+  an admin changed it). In PHP `Question::$archive` is nullable and null by
+  default, `genai:ask` has `--archive` and `--no-archive`. Requires the GenAI
+  application with the setting `answer.archive`.
 - The glossaries and knowledge entries the CMS keeps in `configs/genai` of the
   resource channel are sent to the GenAI application, as documents of the
   types `glossary` and `knowledge` of the source `internal`: a full run sends

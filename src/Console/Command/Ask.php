@@ -66,8 +66,10 @@ class Ask extends Command
             ->addOption(
                 'archive',
                 null,
-                InputOption::VALUE_NONE,
-                'Let archived documents answer the question as well',
+                InputOption::VALUE_NEGATABLE,
+                'Let archived documents answer the question as well '
+                . '(--archive) or not (--no-archive), by default the setting '
+                . 'of the channel applies',
             )
             ->addOption(
                 'object-type',
@@ -103,12 +105,13 @@ class Ask extends Command
 
         /** @var string[] $categoryIds */
         $categoryIds = $input->getOption('category');
+        $archive = $input->getOption('archive');
 
         $result = $this->assistant->ask(new Question(
             $typedInput->getStringArgument('question'),
             ResourceLanguage::of($typedInput->getStringOption('lang')),
             $categoryIds,
-            (bool) $input->getOption('archive'),
+            is_bool($archive) ? $archive : null,
             $this->filter($input),
         ));
 

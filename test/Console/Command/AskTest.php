@@ -182,9 +182,22 @@ class AskTest extends TestCase
             $this->askedQuestion?->categoryIds,
             'the category options should reach the assistant',
         );
+        $this->assertNull(
+            $this->askedQuestion?->archive,
+            'without the option the archive should be left to the channel',
+        );
+    }
+
+    public function testExecuteWithNoArchive(): void
+    {
+        $tester = $this->createTester(new Answer());
+
+        $tester->execute(['question' => 'why?', '--no-archive' => true]);
+        $tester->assertCommandIsSuccessful();
+
         $this->assertFalse(
             $this->askedQuestion?->archive,
-            'without the option the archive should be left out',
+            'the no-archive option should reach the assistant',
         );
     }
 

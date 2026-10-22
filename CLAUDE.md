@@ -178,9 +178,10 @@ rejects every resource whose language is not the `locale` of the
 
 **The archive.** An archived resource (`base.archive`, the `sp_archive` of
 the Solr index) is indexed with `archive: true`, and the application answers
-from it only when the question asks for the archive - the convention of the
-search-bundle, where `archive` is false unless set. The flag is only sent
-when set, so the hash of every other document stays what it was; archiving a
+from it according to the setting `answer.archive` of the channel (true if
+nobody set it); the question overrides it: `archive` true or false is sent as
+given, null (not given) leaves it to the channel. The flag of a document is
+only sent when set, so the hash of every other document stays what it was; archiving a
 document changes its hash and has it embedded again.
 
 **Id and source.** The indexer reads the same resources as the solr
@@ -348,8 +349,8 @@ Unlike there, an input with no or more than one field is refused with
 `BAD_REQUEST` rather than reduced to its first field, so that a wrongly built
 exclusion is not silently dropped.
 
-From the console: `genai:ask <question> [--lang] [--category ...] [--archive]
-[--object-type ...] [--exclude-object-type ...] [--no-default-filter]`.
+From the console: `genai:ask <question> [--lang] [--category ...]
+[--archive|--no-archive] [--object-type ...] [--exclude-object-type ...] [--no-default-filter]`.
 
 ## Configuration
 

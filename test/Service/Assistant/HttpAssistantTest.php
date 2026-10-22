@@ -269,6 +269,20 @@ class HttpAssistantTest extends TestCase
         );
     }
 
+    public function testAskSendsAnExplicitNoArchive(): void
+    {
+        $assistant = $this->createAssistant('{"data":{"question":{}}}');
+
+        $assistant->ask(new Question('why?', archive: false));
+
+        $this->assertSame(
+            false,
+            $this->variables()['archive'] ?? null,
+            'an explicit false should be sent, as it differs from the '
+            . 'setting of the channel',
+        );
+    }
+
     public function testAskSendsTheFilter(): void
     {
         $assistant = $this->createAssistant('{"data":{"question":{}}}');
@@ -378,7 +392,7 @@ class HttpAssistantTest extends TestCase
             ['query' => 'why?', 'language' => 'de', 'channel' => 'www'],
             $this->variables(),
             'without a language the one of the channel should be sent, '
-            . 'without categories and archive none',
+            . 'without categories and archive none, as the setting of the channel applies',
         );
     }
 

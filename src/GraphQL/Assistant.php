@@ -73,8 +73,10 @@ class Assistant
     #[GQL\Arg(
         name: 'archive',
         type: 'Boolean',
-        description: 'Whether archived resources may answer the question as '
-            . 'well; without it only the others do.',
+        description: 'true also answers from archived resources, false only '
+            . 'from the others; without it the server setting answer.archive '
+            . 'of the channel applies (archived resources included unless an '
+            . 'admin changed it).',
     )]
     #[GQL\Arg(
         name: 'filter',
@@ -98,7 +100,7 @@ class Assistant
                 $query,
                 ResourceLanguage::of($lang),
                 $categoryIds ?? [],
-                $archive ?? false,
+                $archive,
                 $questionFilter,
             ));
         } catch (AssistantException $e) {

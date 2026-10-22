@@ -125,8 +125,9 @@ class HttpAssistant implements Assistant
         if (!empty($question->categoryIds)) {
             $variables['categoryIds'] = array_values($question->categoryIds);
         }
-        if ($question->archive) {
-            $variables['archive'] = true;
+        // without it the setting answer.archive of the channel applies
+        if ($question->archive !== null) {
+            $variables['archive'] = $question->archive;
         }
         // without a filter of its own or of the project, the default
         // filter of the channel in the application applies; an empty
