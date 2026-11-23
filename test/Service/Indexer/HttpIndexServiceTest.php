@@ -135,6 +135,24 @@ class HttpIndexServiceTest extends TestCase
         );
     }
 
+    public function testDeleteByIdListExcludingProcessIdSendsNoRequest(): void
+    {
+        $service = $this->createService('{}');
+
+        $service->deleteByIdListExcludingProcessId(
+            ResourceLanguage::default(),
+            'internal',
+            ['1628'],
+            'process-1',
+        );
+
+        $this->assertCount(
+            0,
+            $this->requests,
+            'an update leaves no surplus documents in the application',
+        );
+    }
+
     public function testDeleteByEmptyIdListSendsNoRequest(): void
     {
         $service = $this->createService('{}');

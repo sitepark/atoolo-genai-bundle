@@ -122,6 +122,25 @@ class HttpIndexService implements IndexService
     }
 
     /**
+     * Nothing to do: the GenAI application holds exactly one document per
+     * resource and replaces it - with all its chunks - when an update sends
+     * it again under the same id. A resource cannot leave surplus documents
+     * behind, as an alternative title document in Solr can.
+     *
+     * The application also offers no request that deletes by id while
+     * keeping a process id; `api/index/purge` knows no ids and would clear
+     * the whole source.
+     *
+     * @param string[] $idList ids of the resources
+     */
+    public function deleteByIdListExcludingProcessId(
+        ResourceLanguage $lang,
+        string $source,
+        array $idList,
+        string $processId,
+    ): void {}
+
+    /**
      * @param string[] $idList
      */
     public function deleteByIdListForAllLanguages(
